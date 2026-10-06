@@ -982,6 +982,14 @@
 <div class="wrap">
 
   <div id="uploadZone">
+    <div id="adminPwRow" style="display:none; max-width:360px; margin:0 auto 14px;">
+      <label for="adminPw" style="display:block; font-size:12.5px; color:var(--text-soft); margin-bottom:4px;">Admin password (required to publish)</label>
+      <input type="password" id="adminPw" autocomplete="current-password" style="width:100%; box-sizing:border-box; padding:9px 12px; border:1px solid var(--line); border-radius:8px; font-size:13.5px;">
+    </div>
+    <div id="viewerNotice" class="upload-card" style="display:none;">
+      <div class="upload-title">No data has been published yet</div>
+      <div class="upload-sub">Please check back later.</div>
+    </div>
     <div class="upload-card" id="dropArea">
       <div class="upload-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -1161,6 +1169,43 @@
 <div class="print-footer" id="printFooter"></div>
 
 <script>
+// ---- Server mode (Railway): admin uploads, everyone else views ----
+const SERVER_MODE = !!window.__SERVER_MODE;
+const IS_ADMIN = !!window.__IS_ADMIN;
+
+async function serverLoad(){
+  const r = await fetch('/api/data', { cache: 'no-store' });
+  if(r.status === 404) return null;
+  if(!r.ok) throw new Error('Server returned ' + r.status);
+  return r.json();
+}
+async function serverSave(payload){
+  for(let attempt = 0; attempt < 3; attempt++){
+    const field = document.getElementById('adminPw');
+    let pw = (field && field.value) || sessionStorage.getItem('sp_admin_pw');
+    if(!pw){
+      pw = window.prompt('Enter the admin password to publish this file:');
+      if(!pw) throw new Error('Publishing cancelled: no admin password entered.');
+    }
+    const r = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': pw },
+      body: JSON.stringify(payload)
+    });
+    if(r.status === 401){
+      sessionStorage.removeItem('sp_admin_pw');
+      if(field) field.value = '';
+      window.alert('Wrong admin password.');
+      continue;
+    }
+    if(r.status === 429) throw new Error('Too many wrong attempts. Please wait 15 minutes and try again.');
+    if(!r.ok) throw new Error('Publishing failed (server returned ' + r.status + ').');
+    sessionStorage.setItem('sp_admin_pw', pw);
+    return;
+  }
+  throw new Error('Wrong admin password.');
+}
+
 // ---- Persistent storage (IndexedDB; much larger quota than localStorage) ----
 const DB_NAME='sp_dashboard_db', STORE='kv', KEY='dashboard_raw_file';
 function idbOpen(){
@@ -2358,7 +2403,7 @@ resetBtn.addEventListener('click', () => {
 });
 
 function resetDashboardState(){
-  idbDel().catch(()=>{}); localStorage.removeItem('dashboard_raw_file');
+  if(!SERVER_MODE){ idbDel().catch(()=>{}); localStorage.removeItem('dashboard_raw_file'); }
   resultZone.style.display = 'none';
   uploadZone.style.display = 'block';
   dropArea.style.display = 'block';
@@ -2378,12 +2423,47 @@ function resetDashboardState(){
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-  // Hide the upload screen while checking for a previous upload (avoids a flash)
+  if(SERVER_MODE){
+    // Role-based screen: viewers never see any upload controls.
+    const pn = document.querySelector('.privacy-note');
+    if(!IS_ADMIN){
+      dropArea.style.display = 'none';
+      if(pn) pn.style.display = 'none';
+      resetBtn.style.display = 'none';
+    } else {
+      document.getElementById('adminPwRow').style.display = 'block';
+      if(pn) pn.querySelector('p').textContent = 'The file is read in your browser, then published to the company server so viewers can see the dashboard. Viewers cannot upload.';
+      const ft = document.querySelector('.filetypes');
+      if(ft) ft.textContent = 'Supports .xls and .xlsx \u00b7 publishing replaces the data everyone else sees';
+    }
+    uploadZone.style.visibility = 'hidden';
+    try {
+      const parsed = await serverLoad();
+      if(parsed){
+        renderResults({ name: parsed.fileName }, parsed.sheetName, parsed.headers, parsed.dataRows, parsed.extra);
+      } else if(!IS_ADMIN){
+        document.getElementById('viewerNotice').style.display = 'block';
+      }
+    } catch (e) {
+      console.error('Could not load data from the server', e);
+      if(!IS_ADMIN){
+        document.getElementById('viewerNotice').style.display = 'block';
+        document.querySelector('#viewerNotice .upload-title').textContent = 'Could not load the data';
+        document.querySelector('#viewerNotice .upload-sub').textContent = 'Please refresh the page or try again shortly.';
+      } else {
+        showError('Could not load the published data: ' + e.message);
+      }
+    } finally {
+      uploadZone.style.visibility = 'visible';
+    }
+    return;
+  }
+
+  // ---- Standalone (no server): remember the last upload in this browser ----
   uploadZone.style.visibility = 'hidden';
   try {
     let parsed = await idbGet();
     if (!parsed) {
-      // migrate from the old localStorage format if present
       const legacy = localStorage.getItem('dashboard_raw_file');
       if (legacy) parsed = JSON.parse(legacy);
     }
@@ -2391,7 +2471,6 @@ window.addEventListener('DOMContentLoaded', async () => {
       renderResults({ name: parsed.fileName }, parsed.sheetName, parsed.headers, parsed.dataRows, parsed.extra);
     }
   } catch (e) {
-    // Keep the saved data; just fall back to the upload screen this time
     console.error('Could not load cached dashboard data', e);
     uploadZone.style.display = 'block';
     resultZone.style.display = 'none';
@@ -2633,11 +2712,19 @@ function handleFile(file){
         dataRows: liveRows,
         extra: { statusDropped, descDropped, trimmedHeaders, trimmedRows }
       };
-      idbSet(payload).catch(err => console.warn('Could not save upload for next visit', err));
-
-      renderResults(file, sheetName, updatedHeaders, liveRows, {
+      const finishRender = () => renderResults(file, sheetName, updatedHeaders, liveRows, {
         statusDropped, descDropped, trimmedHeaders, trimmedRows
       });
+      if(SERVER_MODE){
+        statusText.textContent = 'Publishing to the server\u2026';
+        serverSave(payload).then(finishRender).catch(err => {
+          console.error(err);
+          showError(err.message || 'Publishing failed.');
+        });
+      } else {
+        idbSet(payload).catch(err => console.warn('Could not save upload for next visit', err));
+        finishRender();
+      }
 
     }catch(err){
       console.error(err);
