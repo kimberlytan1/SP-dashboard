@@ -1,0 +1,4128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Structured Product Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Added JSZip library for zip file generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<!-- Added jsPDF for native, vector (non-screenshot) PDF report generation -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --navy:#0B1F3A;
+    --navy-2:#122A4E;
+    --red:#C8102E;
+    --paper:#F5F6F8;
+    --card:#FFFFFF;
+    --line:#E2E5EA;
+    --text:#1B2430;
+    --text-soft:#5B6472;
+    --text-faint:#8A93A0;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body, button, input, select, textarea{
+    font-family:"Segoe UI",-apple-system,BlinkMacSystemFont,Helvetica,sans-serif;
+  }
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--text);
+  }
+  .topbar{
+    background:var(--navy);
+    padding:22px 40px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:4px solid var(--red);
+  }
+  .topbar-left{display:flex;flex-direction:column;gap:2px;}
+  .brandmark{display:flex;align-items:center;gap:10px;}
+  .logo-sq{
+    width:34px;height:34px;background:var(--red);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:17px;flex-shrink:0;
+    line-height: 1;
+  }
+  .brand-name{color:#fff;font-size:15px;font-weight:600;letter-spacing:0.2px;}
+  .brand-sub{color:#A9B4C4;font-size:11.5px;}
+  .title{color:#fff;font-size:22px;font-weight:600;margin-top:10px;}
+  .subtitle{color:#A9B4C4;font-size:13px;margin-top:2px;}
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:24px 40px 80px;
+  }
+
+  .upload-card{
+    background:var(--card);
+    border:1.5px dashed var(--line);
+    border-radius:var(--radius);
+    padding:56px 40px;
+    text-align:center;
+    transition:border-color .15s ease, background .15s ease;
+    cursor:pointer;
+  }
+  .upload-card.drag{
+    border-color:var(--red);
+    background:#FFF7F7;
+  }
+  .upload-icon{
+    width:52px;height:52px;margin:0 auto 18px;
+    border-radius:50%;
+    background:var(--paper);
+    display:flex;align-items:center;justify-content:center;
+    pointer-events:none;
+  }
+  .upload-icon svg{width:24px;height:24px;stroke:var(--navy);}
+  .upload-title{font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px;pointer-events:none;}
+  .upload-sub{font-size:13px;color:var(--text-soft);margin-bottom:22px;pointer-events:none;}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    background:var(--navy);
+    color:#fff;
+    border:none;
+    padding:10px 20px;
+    border-radius:7px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background 0.2s ease;
+  }
+  .btn:hover{background:var(--navy-2);}
+  .btn-outline{
+    background:transparent;
+    color:var(--navy);
+    border:1.3px solid var(--line);
+  }
+  .btn-outline:hover{
+    background:#EAEFF5;
+    border-color:#2C4A75;
+    color:#2C4A75;
+  }
+  .btn-dark-grey{
+    background:#E2E5EA;
+    color:var(--text);
+    border:1px solid var(--line);
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-dark-grey:hover{
+    background:#C8CCD3;
+    color:var(--text);
+    border-color:var(--navy);
+  }
+  .filetypes{margin-top:18px;font-size:11.5px;color:var(--text-faint);pointer-events:none;}
+  input[type=file]{display:none;}
+
+  .privacy-note{
+    display:flex;
+    gap:10px;
+    align-items:flex-start;
+    max-width:640px;
+    margin:22px auto 0;
+    padding:12px 16px;
+    background:#EEF3F1;
+    border-radius:8px;
+    text-align:left;
+  }
+  .privacy-note svg{width:16px;height:16px;stroke:#2C6E49;flex-shrink:0;margin-top:2px;}
+  .privacy-note p{margin:0;font-size:12.5px;color:#2C6E49;line-height:1.5;}
+
+  .status-row{
+    display:flex;align-items:center;gap:12px;
+    padding:40px 0;
+    color:var(--text-soft);
+    font-size:14px;
+  }
+  .spinner{
+    width:18px;height:18px;border-radius:50%;
+    border:2.5px solid var(--line);
+    border-top-color:var(--navy);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .error-box{
+    background:#FDECEC;
+    border:1px solid #F4C4C4;
+    border-radius:var(--radius);
+    padding:18px 22px;
+    color:#8A1F1F;
+    font-size:13.5px;
+    margin-top:20px;
+  }
+
+  .file-bar{
+    display:flex;align-items:center;justify-content:space-between;
+    margin-bottom:12px;
+    flex-wrap:wrap;gap:12px;
+  }
+  .file-info{display:flex;align-items:center;gap:12px;}
+  .file-info-icon{
+    width:36px;height:36px;border-radius:8px;background:#E9F1EA;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .file-info-icon svg{width:17px;height:17px;stroke:#2C6E49;}
+  .file-name{font-size:14px;font-weight:600;}
+  .file-meta{font-size:12px;color:var(--text-soft);}
+
+  .stat-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+    gap:14px;
+    margin-bottom:12px;
+  }
+  .stat-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px 20px;
+  }
+  .stat-num{font-size:26px;font-weight:700;color:var(--navy);}
+  .stat-label{font-size:12px;color:var(--text-soft);margin-top:4px;}
+
+  .section-title{font-size:15px;font-weight:600;margin:0 0 2px;}
+  .section-sub{font-size:12.5px;color:var(--text-soft);margin:0 0 10px;}
+
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 20px;
+    margin-bottom:12px;
+  }
+
+  table.preview{
+    width:100%;
+    border-collapse:collapse;
+    font-size:12px;
+  }
+  .table-scroll{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:8px;
+    max-height: 500px;
+    position: relative;
+  }
+  table.preview th{
+    background:var(--paper);
+    text-align:left;
+    padding:8px 12px;
+    color:var(--text-soft);
+    font-weight:600;
+    white-space:nowrap;
+    border-bottom:1px solid var(--line);
+    position:sticky;top:0;
+    z-index: 2;
+  }
+  table.preview td{
+    padding:8px 12px;
+    border-bottom:1px solid #F0F1F3;
+    white-space:nowrap;
+    color:var(--text);
+  }
+  table.preview tr:last-child td{border-bottom:none;}
+
+  .fundamentals-grid{
+    display:flex;
+    gap:28px;
+    flex-wrap:wrap;
+  }
+  .fundamentals-col{
+    flex: 2 1 320px;
+    min-width: 260px;
+  }
+  .fundamentals-col-narrow{
+    flex: 1 1 200px;
+    min-width: 180px;
+  }
+  .fundamentals-table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  .fundamentals-table th{
+    text-align:left;
+    padding:6px 10px;
+    color:var(--text-soft);
+    font-weight:600;
+    font-size:11.5px;
+    border-bottom:1px solid var(--line);
+    white-space:nowrap;
+  }
+  .fundamentals-table td{
+    padding:6px 10px;
+    border-bottom:1px solid #F0F1F3;
+    color:var(--text);
+  }
+  .fundamentals-table tr:last-child td{border-bottom:none;}
+  .fund-group-label{
+    font-size:12px;
+    font-weight:600;
+    color:var(--text-soft);
+    margin-bottom:10px;
+  }
+  .fund-cards-grid{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .fund-card{
+    flex:0 1 320px;
+    min-width:320px;
+    max-width:100%;
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:10px 18px 10px 12px;
+    box-sizing:border-box;
+    overflow:hidden;
+  }
+  .fund-card-title{
+    font-weight:700;
+    font-size:13.5px;
+    color:var(--text);
+    margin-bottom:6px;
+    overflow-wrap:break-word;
+  }
+  .fund-card-table{
+    font-size:11px;
+    table-layout:fixed;
+    width:100%;
+  }
+  .fund-card-table th, .fund-card-table td{
+    width:20%;
+    padding:3px 6px;
+    white-space:nowrap;
+    overflow-wrap:break-word;
+  }
+
+  .th-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  
+  .th-label-sort {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    user-select: none;
+    flex-grow: 1;
+  }
+  .th-label-sort:hover {
+    color: var(--navy);
+  }
+  .sort-indicator {
+    font-size: 10px;
+    color: var(--navy);
+    font-weight: bold;
+  }
+
+  .th-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .filter-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    color: var(--text-faint);
+    border-radius: 4px;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    color: var(--navy);
+    background: #EAEFF5;
+  }
+  .filter-btn svg { width: 13px; height: 13px; stroke: currentColor; }
+
+  .filter-popup {
+    display: none;
+    position: absolute;
+    background: #fff;
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    border-radius: 8px;
+    padding: 12px;
+    width: 220px;
+    z-index: 100;
+    font-weight: normal;
+    text-transform: none;
+  }
+  .filter-popup.show { display: block; }
+  .filter-search-input {
+    width: 100%;
+    padding: 6px 8px;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-bottom: 8px;
+    outline: none;
+  }
+  .filter-search-input:focus { border-color: var(--navy); }
+  .filter-checkbox-list {
+    max-height: 150px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    margin-bottom: 10px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 6px 0;
+  }
+  .filter-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--text);
+    white-space: normal;
+    word-break: break-word;
+  }
+  .filter-actions {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .filter-action-btn {
+    font-size: 11.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--text);
+  }
+  .filter-action-btn.primary {
+    background: var(--navy);
+    color: #fff;
+    border-color: var(--navy);
+  }
+
+  .reset-link{
+    font-size:12.5px;color:var(--text-soft);
+    background:none;border:none;cursor:pointer;
+    text-decoration:underline;
+    padding:0;
+  }
+
+  .advisor-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .advisor-controls{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .custom-dropdown-container {
+    position: relative;
+    width: 280px;
+    max-width: 100%;
+  }
+  .custom-dropdown-selected {
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border-radius: 7px;
+    border: 1.3px solid var(--line);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    user-select: none;
+    min-height: 38px;
+  }
+  .custom-dropdown-selected:hover {
+    border-color: var(--navy);
+  }
+  .custom-dropdown-arrow {
+    width: 10px;
+    height: 10px;
+    border-right: 2px solid var(--text-soft);
+    border-bottom: 2px solid var(--text-soft);
+    transform: rotate(45deg);
+    transition: transform 0.2s ease;
+    margin-bottom: 3px;
+  }
+  .custom-dropdown-container.open .custom-dropdown-arrow {
+    transform: rotate(-135deg);
+    margin-bottom: -3px;
+  }
+  .custom-dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+    border-radius: 8px;
+    z-index: 1000;
+    padding: 8px;
+  }
+  .custom-dropdown-container.open .custom-dropdown-menu {
+    display: block;
+  }
+  .custom-dropdown-search {
+    width: 100%;
+    padding: 7px 10px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    outline: none;
+    margin-bottom: 6px;
+  }
+  .custom-dropdown-search:focus {
+    border-color: var(--navy);
+  }
+  .custom-dropdown-list {
+    max-height: 340px;
+    overflow-y: auto;
+  }
+  .custom-dropdown-item {
+    padding: 5px 10px;
+    font-size: 13px;
+    color: var(--text);
+    border-radius: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.2;
+    margin-bottom: 0;
+  }
+  .custom-dropdown-item:hover, .custom-dropdown-item.highlighted {
+    background: #0060df;
+    color: #ffffff;
+  }
+  .custom-dropdown-item.selected {
+    font-weight: 400;
+    color: var(--text);
+    background: #EAEFF5;
+  }
+  .custom-dropdown-item.all-advisors-option {
+    font-weight: 600;
+    color: var(--text-soft);
+    border-bottom: 1px solid #E1E6ED;
+    border-radius: 0;
+    margin-bottom: 4px;
+    padding-bottom: 7px;
+  }
+  .custom-dropdown-item.all-advisors-option:hover,
+  .custom-dropdown-item.all-advisors-option.highlighted {
+    color: #ffffff;
+  }
+  .custom-dropdown-empty {
+    padding: 10px;
+    text-align: center;
+    font-size: 12.5px;
+    color: var(--text-faint);
+  }
+
+  .print-pies-container{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  .print-pie-panel{
+    width:100%;
+    min-width:0;
+    overflow:hidden;
+    margin-bottom:0 !important;
+  }
+
+  .pie-layout{
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    gap: 32px;
+    width: 100%;
+    padding: 8px 0;
+  }
+  .pie-canvas-wrap{
+    width: 180px;
+    height: 180px;
+    min-width: 180px;
+    min-height: 180px;
+    max-width: 180px;
+    max-height: 180px;
+    flex-shrink: 0;
+    position: relative;
+    margin: 0 auto;
+  }
+  .pie-canvas-wrap canvas{
+    width: 180px !important;
+    height: 180px !important;
+  }
+  .pie-legend{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 14px;
+    box-sizing: border-box;
+  }
+  .advisor-rank-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:0 28px;
+    padding-top:4px;
+  }
+  .advisor-rank-col{
+    display:flex;
+    flex-direction:column;
+  }
+  .advisor-rank-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:8px 0;
+    border-bottom:1px solid #F0F1F3;
+    font-size:13px;
+  }
+  .advisor-rank-row:last-child{ border-bottom:none; }
+  .advisor-rank-num{
+    flex-shrink:0;
+    width:18px;
+    color:var(--text-faint);
+    font-weight:600;
+  }
+  .advisor-rank-name{
+    flex:1;
+    min-width:0;
+    color:var(--text);
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .advisor-rank-value{
+    flex-shrink:0;
+    color:var(--text-soft);
+    font-variant-numeric:tabular-nums;
+  }
+  .legend-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    font-size:13px;
+    width:100%;
+  }
+  .legend-swatch{
+    width:10px;
+    height:10px;
+    border-radius:2px;
+    flex-shrink:0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  .legend-name{
+    flex:1;
+    color:var(--text);
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    margin-left:8px;
+    line-height: 1.35;
+    max-height: 5.4em;
+    word-break: break-word;
+  }
+  .legend-pct{
+    font-weight:600;
+    color:var(--text);
+    min-width:50px;
+    text-align:right;
+    flex-shrink:0;
+  }
+
+  .pie-layout.pdf-mode{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px !important;
+    width:100%;
+    padding: 2px 0 !important;
+  }
+  .pie-canvas-wrap.pdf-mode{
+    width:440px !important;
+    height:260px !important;
+    max-width:440px !important;
+    max-height:260px !important;
+    min-width:440px !important;
+    min-height:260px !important;
+    order: 2;
+    margin: 0 auto;
+  }
+  .pie-canvas-wrap.pdf-mode canvas{
+    width:440px !important;
+    height:260px !important;
+  }
+  .pie-legend.pdf-mode{
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:2px 8px;
+    width:100%;
+    padding: 0 20px !important;
+    box-sizing: border-box;
+    order: 1;
+  }
+  .pie-legend.pdf-mode .legend-row{
+    width:auto !important;
+    justify-content:flex-start;
+    gap:4px !important;
+    font-size:8.5px !important;
+  }
+  .pie-legend.pdf-mode .legend-name{
+    -webkit-line-clamp: 1;
+    max-height: 1.1em !important;
+    margin-left:0;
+    white-space: nowrap;
+  }
+
+  .download-panel{
+    padding:14px 14px 14px;
+    margin-bottom:0;
+  }
+  .download-row{
+    display:flex;
+    gap:8px;
+  }
+  .download-row .dl-btn{
+    flex:1 1 0;
+    min-width:0;
+    flex-direction:column;
+    gap:5px;
+    padding:9px 4px;
+    font-size:11.5px;
+    line-height:1.2;
+    text-align:center;
+  }
+  .dashboard-layout{
+    display:flex;
+    gap:20px;
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+  .main-col{
+    flex:1 1 600px;
+    min-width:0;
+  }
+  .side-col{
+    flex:0 0 240px;
+    width:240px;
+    position:sticky;
+    top:20px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  .fx-panel{
+    padding:16px 18px;
+    margin-bottom:0;
+  }
+  .fx-list{
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+  }
+  .fx-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:7px 0;
+    border-bottom:1px solid #F0F1F3;
+    font-size:12.5px;
+  }
+  .fx-row:last-child{border-bottom:none;}
+  .fx-ccy{color:var(--text-soft);font-weight:600;letter-spacing:0.3px;}
+  .fx-rate{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;}
+  .fx-rate-input {
+    width: 80px;
+    padding: 2px 4px;
+    font-size: 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    text-align: right;
+  }
+
+  .fx-upload{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px solid var(--line);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .fx-upload-label{
+    display:block;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--text);
+    margin-bottom:2px;
+  }
+  #fxRatesFile{display:none;}
+
+  .bulk-pdf-overlay{
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(20, 24, 32, 0.94);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    color: #ffffff;
+    text-align: center;
+    padding: 24px;
+  }
+  .bulk-pdf-overlay.active{ display: flex; }
+  .bulk-pdf-spinner{
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 4px solid rgba(255,255,255,0.25);
+    border-top-color: #ffffff;
+    animation: bulk-pdf-spin 0.9s linear infinite;
+  }
+  @keyframes bulk-pdf-spin{ to { transform: rotate(360deg); } }
+  .bulk-pdf-overlay-title{ font-size: 16px; font-weight: 600; }
+  .bulk-pdf-overlay-sub{ font-size: 13px; color: #C7CDD6; max-width: 380px; line-height: 1.5; }
+  .bulk-pdf-overlay-cancel{
+    margin-top: 6px;
+    padding: 7px 18px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.35);
+    background: transparent;
+    color: #ffffff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .bulk-pdf-overlay-cancel:hover{ background: rgba(255,255,255,0.1); }
+
+  .print-table-container { display: none; }
+  .print-footer { display: none; }
+
+  @media print {
+    @page { size: landscape; margin: 1cm 1cm 1cm 1cm; }
+    body { background: #fff; color: #000; }
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
+    .topbar, .file-bar, .stat-grid, #advisorPanel, #fxCol, .privacy-note, #uploadZone, .reset-link, .filter-btn, .copy-csv-btn, .download-panel, .panel:has(#previewTable) { display: none !important; }
+    .wrap { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+    .dashboard-layout { display: block !important; }
+    .main-col { width: 100% !important; }
+
+    .print-header {
+      display: flex !important;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
+    }
+    .print-title { font-size: 16px; font-weight: 700; color: #0B1F3A; }
+    .print-subtitle { font-size: 10px; font-weight: 600; color: #5B6472; margin-top: 2px; }
+    .print-brand { text-align: right; font-size: 11px; font-weight: 700; color: #C8102E; }
+
+    .print-stats { display: flex !important; gap: 8px; }
+    .print-stat-card {
+      background: #F5F6F8;
+      border-radius: 6px;
+      padding: 4px 14px;
+      text-align: center;
+      min-width: 100px;
+    }
+    .print-stat-num { font-size: 14px; font-weight: 700; color: #0B1F3A; line-height: 1.2; white-space: nowrap; }
+    .print-stat-label { font-size: 7px; color: #5B6472; margin-top: 1px; white-space: nowrap; }
+
+    .print-footer {
+      display: block !important;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: right;
+      font-size: 9px;
+      color: #5B6472;
+      background: #fff;
+    }
+
+    /* Side-by-side grid for the two pie charts on Page 1 */
+    .print-pies-container { 
+      display: grid !important; 
+      grid-template-columns: 1fr 1fr !important; 
+      gap: 12px !important; 
+      margin-bottom: 0 !important; 
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      break-before: auto !important;
+      page-break-before: auto !important;
+    }
+
+    .panel { border: 1px solid #ccc !important; box-shadow: none !important; padding: 8px 10px !important; margin-bottom: 0 !important; }
+    #fundamentalPanel { margin-top: 10px !important; }
+    
+    .print-pie-panel { 
+      width: 100% !important; 
+      flex: none !important;
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+      height: 330px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      justify-content: flex-start !important;
+      padding: 8px 10px !important;
+    }
+
+    .print-pie-panel .pie-layout {
+      margin: auto auto !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    .section-title { font-size: 10.5px !important; margin-bottom: 1px !important; }
+    .section-sub { display: block !important; font-size: 8.5px !important; margin-bottom: 8px !important; }
+    .pie-layout { grid-template-columns: 140px minmax(0, 1fr) !important; gap: 8px !important; padding: 0 !important; }
+    .pie-legend { width: 100% !important; }
+
+    .fundamentals-grid { gap: 16px !important; }
+    .fundamentals-table { font-size: 9px !important; }
+    .fundamentals-table th, .fundamentals-table td { padding: 3px 6px !important; font-size: 9px !important; }
+
+    .legend-row { font-size: 8.5px !important; gap: 4px !important; }
+    .legend-name { max-height: 3.5em !important; }
+
+    /* Data preview table starts on Page 2 */
+    .print-table-container {
+      display: block !important;
+      background: #fff;
+      border: none !important;
+      border-radius: 0;
+      padding: 0;
+      margin-top: 12px;
+      break-inside: auto;
+      break-before: page !important;
+      page-break-before: always !important;
+    }
+    table.print-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 9px;
+    }
+    table.print-table th {
+      background: #f0f0f0 !important;
+      color: #000 !important;
+      border-bottom: 2px solid #000 !important;
+      padding: 5px 8px;
+      text-align: left;
+      font-weight: 700;
+    }
+    table.print-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid #ddd !important;
+      color: #000 !important;
+    }
+    table.print-table tr {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    tbody.print-group {
+      break-inside: avoid !important;
+      page-break-inside: avoid !important;
+    }
+    .print-group-header td {
+      font-weight: 700;
+      background: #f8f9fa !important;
+      border-top: 1.5px solid #000 !important;
+      padding-top: 6px;
+    }
+  }
+
+  .print-header { display: none; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="title">Structured product dashboard</div>
+    <div class="subtitle"><b>Advisor exposure builder &middot; <em>working model ver1.0</em></b></div>
+  </div>
+  <div class="brandmark">
+    <div>
+      <div class="brand-name" style="text-align:right;">UOB Kay Hian</div>
+      <div class="brand-sub" style="text-align:right;">Your trusted financial partner</div>
+    </div>
+    <div class="logo-sq">U</div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div id="uploadZone">
+    <div class="upload-card" id="dropArea">
+      <div class="upload-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <div class="upload-title">Upload your raw holdings file</div>
+      <div class="upload-sub">Drag and drop your .xls or .xlsx export here, or browse from your computer</div>
+      <button class="btn" id="browseBtn" type="button">Choose file</button>
+      <input type="file" id="fileInput" accept=".xls,.xlsx,.xlsm">
+      <div class="filetypes">Supports .xls and .xlsx &middot; nothing is uploaded to a server, parsing happens in this browser tab</div>
+    </div>
+
+    <div class="privacy-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      <p>Client and holdings data stays local to this browser tab. The file is read and parsed on your device.</p>
+    </div>
+
+    <div id="statusRow" style="display:none;" class="status-row">
+      <div class="spinner"></div>
+      <span id="statusText">Reading file&hellip;</span>
+    </div>
+
+    <div id="errorBox" style="display:none;" class="error-box"></div>
+  </div>
+
+  <div id="resultZone" style="display:none;">
+
+  <div class="print-header">
+    <div>
+      <div class="print-title">Structured Product Dashboard</div>
+      <div class="print-subtitle" id="printAdvisorSub">Advisor: All Holdings</div>
+    </div>
+    <div class="print-stats">
+      <div class="print-stat-card">
+        <div class="print-stat-num" id="printStatNotional">&mdash;</div>
+        <div class="print-stat-label">Client Principal (USD equiv.)</div>
+      </div>
+      <div class="print-stat-card">
+        <div class="print-stat-num" id="printStatProducts">&mdash;</div>
+        <div class="print-stat-label">Live Products</div>
+      </div>
+    </div>
+    <div class="print-brand">
+      UOB Kay Hian
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+  <div class="main-col">
+
+    <div class="file-bar">
+      <div class="file-info">
+        <div class="file-info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        </div>
+        <div>
+          <div class="file-name" id="fileNameOut">&mdash;</div>
+          <div class="file-meta" id="fileMetaOut">&mdash;</div>
+          <div class="file-meta" id="fileStatsLine" style="margin-top:2px;">&mdash;</div>
+        </div>
+      </div>
+      <button class="reset-link" id="resetBtn">Upload a different file</button>
+    </div>
+
+    <div class="panel" id="advisorPanel">
+      <div class="advisor-header-row">
+        <div>
+          <div class="section-title">Advisor view</div>
+          <div class="section-sub" style="margin-bottom: 0;">Pick an advisor to see their own book. The respective data will update accordingly.</div>
+        </div>
+        <div class="advisor-controls" id="advisorControlsContainer">
+        </div>
+      </div>
+    </div>
+
+    <div class="print-pies-container">
+      <div class="panel print-pie-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div class="section-title">Underlying allocation</div>
+          <button type="button" class="btn btn-outline copy-csv-btn" data-source="underlying" data-col="Underlying" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy CSV</button>
+        </div>
+        <div class="section-sub" id="pieSub">Share of cost by underlying stock across all advisors, on behalf of clients.</div>
+        <div class="pie-layout">
+          <div class="pie-canvas-wrap"><canvas id="underlyingPie"></canvas></div>
+          <div class="pie-legend" id="underlyingLegend"></div>
+        </div>
+      </div>
+
+      <div class="panel print-pie-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div class="section-title" id="clientPanelTitle">Client holdings</div>
+          <button type="button" class="btn btn-outline copy-csv-btn" id="clientCopyCsvBtn" data-source="client" data-col="Client" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy CSV</button>
+        </div>
+        <div class="section-sub" id="clientPieSub">Share of total portfolio value by client across all advisors.</div>
+        <div class="pie-layout" id="clientPieContent">
+          <div class="pie-canvas-wrap"><canvas id="clientPie"></canvas></div>
+          <div class="pie-legend" id="clientLegend"></div>
+        </div>
+        <div id="advisorRankingContent" class="advisor-rank-grid" style="display:none;"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="fundamentalPanel">
+      <div class="section-title">Fundamental observations</div>
+      <div class="section-sub">Average strike, KI, KO and coupon for the top 5 underlyings by cost, broken down by currency</div>
+      <div class="fund-group-label">Underlying</div>
+      <div class="fund-cards-grid" id="topUnderlyingsCards"></div>
+    </div>
+
+    <div class="panel">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
+        <div class="section-title" style="margin: 0;">Data preview</div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <button type="button" class="btn-outline" id="clearSortBtn" style="font-size: 12px; padding: 5px 10px; border-radius: 6px;">Clear sort</button>
+          <button type="button" class="btn-outline" id="clearFiltersBtn" style="font-size: 12px; padding: 5px 10px; border-radius: 6px;">Clear all column filters</button>
+          <label style="font-size: 13px; color: var(--text-soft); display: flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; font-weight: normal;">
+            <input type="checkbox" id="showAllToggle" style="cursor: pointer;"> Show all rows
+          </label>
+        </div>
+      </div>
+
+      <div class="table-scroll">
+        <table class="preview" id="previewTable"></table>
+      </div>
+
+      <div class="section-sub" id="colPreviewSub" style="margin: 10px 0 0 0;">Showing first 10 of 1 rows.</div>
+    </div>
+
+    <div class="print-table-container" id="printTableContainer">
+      <table class="print-table" id="printTable"></table>
+    </div>
+
+  </div>
+
+  <aside class="side-col" id="fxCol">
+    <div class="panel download-panel">
+      <div class="section-title" style="margin:0 0 8px 0;">Download</div>
+      <div class="download-row">
+      <button class="btn btn-dark-grey dl-btn" id="exportPdfBtn" type="button" title="Download Report">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="dl-label">Report</span>
+      </button>
+      <button class="btn btn-dark-grey dl-btn" id="exportZipBtn" type="button" title="Download All Advisor Data Reports (.zip)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="dl-label">Data .zip</span>
+      </button>
+      <button class="btn btn-dark-grey dl-btn" id="exportAllPdfBtn" type="button" title="Download All Advisor PDF Reports (.zip)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="dl-label">PDFs .zip</span>
+      </button>
+      </div>
+      <div class="download-row" style="margin-top:8px;">
+      <button class="btn btn-dark-grey dl-btn" id="exportTop10Btn" type="button" title="Download Top 10 Advisors' PDF Reports by Total Notional (USD) (.zip)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span class="dl-label">Top 10 Advisors .zip</span>
+      </button>
+      </div>
+    </div>
+
+    <div class="panel fx-panel">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <div class="section-title" style="margin:0;">Exchange rates</div>
+        <button type="button" class="btn-outline" id="editRatesBtn" style="font-size:11px; padding:3px 8px; border-radius:4px;">Edit rates</button>
+      </div>
+      <div class="section-sub" id="fxSub">Fetching direct USD/USD pairs&hellip;</div>
+      <div id="fxLastUpdate" style="font-size:11.5px; color:var(--text-faint); margin-bottom:8px; font-style:italic;">Last update: —</div>
+      <div id="fxList" class="fx-list"></div>
+
+      <div class="fx-upload">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <label class="fx-upload-label" for="fxRatesFile" style="margin-bottom:0;">Upload custom rates</label>
+          <button class="btn-outline" id="fxDownloadTemplateBtn" type="button" style="font-size:11px; padding:3px 8px; border-radius:4px;">Template</button>
+        </div>
+        <div class="section-sub" style="margin:0;">Upload an Excel or CSV file matching the template structure.</div>
+        <button class="btn btn-outline" id="fxUploadBtn" type="button" style="width:100%;">Choose rates file</button>
+        <input type="file" id="fxRatesFile" accept=".csv,.xlsx,.xls">
+        <div id="fxUploadStatus" class="section-sub" style="margin-top:2px;"></div>
+      </div>
+    </div>
+  </aside>
+
+  </div>
+  </div>
+
+</div>
+
+<div class="print-footer" id="printFooter"></div>
+
+<script>
+// ---- Persistent storage (IndexedDB; much larger quota than localStorage) ----
+const DB_NAME='sp_dashboard_db', STORE='kv', KEY='dashboard_raw_file';
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>req.result.createObjectStore(STORE);
+    req.onsuccess=()=>res(req.result);
+    req.onerror=()=>rej(req.error);
+  });
+}
+async function idbSet(val){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).put(val,KEY);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  });
+}
+async function idbGet(){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const r=db.transaction(STORE).objectStore(STORE).get(KEY);
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);
+  });
+}
+async function idbDel(){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).delete(KEY);
+    tx.oncomplete=()=>res(); tx.onerror=()=>rej(tx.error);
+  });
+}
+const dropArea = document.getElementById('dropArea');
+const fileInput = document.getElementById('fileInput');
+const browseBtn = document.getElementById('browseBtn');
+const statusRow = document.getElementById('statusRow');
+const statusText = document.getElementById('statusText');
+const errorBox = document.getElementById('errorBox');
+const uploadZone = document.getElementById('uploadZone');
+const resultZone = document.getElementById('resultZone');
+const resetBtn = document.getElementById('resetBtn');
+const exportPdfBtn = document.getElementById('exportPdfBtn');
+const exportZipBtn = document.getElementById('exportZipBtn');
+const exportAllPdfBtn = document.getElementById('exportAllPdfBtn');
+const exportTop10Btn = document.getElementById('exportTop10Btn');
+
+let activeColumnFilters = {}; 
+let currentSortColumn = null; 
+let currentSortDirection = 'asc'; 
+let selectedAdvisorValue = "";
+
+let originalDocTitle = document.title;
+
+function preparePrintView(){
+  setPieChartsPdfMode(true);
+
+  const now = new Date();
+  const timeString = now.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+  });
+  document.getElementById('printFooter').textContent = `Generated on: ${timeString}`;
+
+  const data = window.__dashboardData;
+  if(data) renderPrintTable(data.headers, data.dataRows, selectedAdvisorValue);
+}
+
+function waitForPaint(){
+  return new Promise(resolve => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
+}
+
+exportPdfBtn.addEventListener('click', async () => {
+  const data = window.__dashboardData;
+  if (!data) {
+    alert('No data loaded to export.');
+    return;
+  }
+
+  exportPdfBtn.disabled = true;
+  exportZipBtn.disabled = true;
+  exportAllPdfBtn.disabled = true;
+  exportTop10Btn.disabled = true;
+  const originalBtnHtml = exportPdfBtn.innerHTML;
+  setBtnLabel(exportPdfBtn, 'Working\u2026');
+
+  try {
+    const blob = await generateAdvisorPdfBlob(selectedAdvisorValue || "");
+    const advisorLabel = selectedAdvisorValue ? toTitleCase(selectedAdvisorValue) : 'All_Holdings';
+    const safeName = advisorLabel.replace(/[^a-zA-Z0-9-_]/g, '_');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}_report.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error generating PDF report:', err);
+    alert('Failed to generate PDF report: ' + err.message);
+  } finally {
+    exportPdfBtn.innerHTML = originalBtnHtml;
+    exportPdfBtn.disabled = false;
+    exportZipBtn.disabled = false;
+    exportAllPdfBtn.disabled = false;
+    exportTop10Btn.disabled = false;
+  }
+});
+
+// Added functionality to bundle all advisor dashboard reports into a zip file
+exportZipBtn.addEventListener('click', async () => {
+  const data = window.__dashboardData;
+  if (!data || !window.__advisorCodeMap) {
+    alert('No data loaded to zip.');
+    return;
+  }
+
+  const advisors = Object.keys(window.__advisorCodeMap);
+  if (advisors.length === 0) {
+    alert('No advisors detected in the dataset.');
+    return;
+  }
+
+  setBtnLabel(exportZipBtn, 'Zipping\u2026');
+  exportZipBtn.disabled = true;
+
+  try {
+    const zip = new JSZip();
+    const folder = zip.folder("Advisor_Data");
+    const headers = data.headers;
+    const dataRows = data.dataRows;
+    const advIdx = colIndex(headers, 'Advisor Name');
+
+    for (const advisor of advisors) {
+      const filteredRows = dataRows.filter(r => String(r[advIdx] || '').trim() === advisor);
+      
+      // Build a clean workbook export or summary sheet for each advisor using SheetJS
+      const wsData = [headers, ...filteredRows];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Advisor Report");
+
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      const safeName = advisor.replace(/[^a-zA-Z0-9-_]/g, '_');
+      folder.file(`${safeName}_data.xlsx`, wbout);
+    }
+
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'All_Advisor_Data.zip';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('Error generating zip:', err);
+    alert('Failed to generate ZIP file: ' + err.message);
+  } finally {
+    setBtnLabel(exportZipBtn, 'Data .zip');
+    exportZipBtn.disabled = false;
+  }
+});
+
+// ---- Bulk "Download All Advisor PDF Reports" -----------------------------
+// Builds an actual .pdf per advisor client-side (no print dialog involved),
+// using the same visual layout as the single "Download Report" button
+// (page 1 = charts/fundamentals, page 2+ = the full data table), then zips
+// them all into one download.
+
+// Small helpers for native vector drawing (no screenshots involved).
+function hexToRgb(hex){
+  const h = String(hex).replace('#','');
+  return [parseInt(h.substring(0,2),16), parseInt(h.substring(2,4),16), parseInt(h.substring(4,6),16)];
+}
+
+// Top-5-plus-Others grouping, identical to what the on-screen/print charts use.
+function computePieSlices(dataMap, topN = 5){
+  const entries = Object.entries(dataMap).sort((a,b) => b[1] - a[1]);
+  const total = entries.reduce((acc, curr) => acc + curr[1], 0);
+  let topEntries = entries;
+  if(entries.length > topN + 1){
+    const otherSum = entries.slice(topN).reduce((acc, curr) => acc + curr[1], 0);
+    topEntries = entries.slice(0, topN);
+    topEntries.push(['Others', otherSum]);
+  }
+  return {
+    labels: topEntries.map(e => e[0]),
+    values: topEntries.map(e => e[1]),
+    pcts: roundedPcts(topEntries.map(e => e[1]), total),
+    colors: topEntries.map((e, i) => pieColorFor(e[0], i)),
+    total
+  };
+}
+
+// Draws one filled pie wedge as a vector polygon approximating the arc
+// (jsPDF's stable core `lines` API — no canvas/screenshot involved).
+function drawPieWedge(doc, cx, cy, radius, startAngle, endAngle, colorRgb){
+  const span = endAngle - startAngle;
+  const steps = Math.max(2, Math.ceil(Math.abs(span) / (Math.PI / 60)));
+  const points = [];
+  for(let i = 0; i <= steps; i++){
+    const a = startAngle + span * (i / steps);
+    points.push([cx + radius * Math.cos(a), cy + radius * Math.sin(a)]);
+  }
+  const lines = [];
+  let prev = [cx, cy];
+  points.forEach(p => {
+    lines.push([p[0] - prev[0], p[1] - prev[1]]);
+    prev = p;
+  });
+  doc.setFillColor(colorRgb[0], colorRgb[1], colorRgb[2]);
+  doc.lines(lines, cx, cy, [1, 1], 'F', true);
+}
+
+function drawDonutChart(doc, cx, cy, outerR, innerR, slices){
+  if(slices.total <= 0) return;
+  let angle = -Math.PI / 2;
+  const mainLabels = [];
+  const smallSlices = [];
+  slices.values.forEach((v, i) => {
+    const sweep = (v / slices.total) * Math.PI * 2;
+    if(sweep > 0.0005){
+      drawPieWedge(doc, cx, cy, outerR, angle, angle + sweep, hexToRgb(slices.colors[i]));
+      // Slices too thin to hold readable inline text (same 4% cutoff the
+      // on-screen/print charts use) get a leader line out to a label
+      // instead, rather than no label at all.
+      const pct = slices.pcts[i];
+      const midAngle = angle + sweep / 2;
+      if(pct >= 4){
+        const midR = (innerR + outerR) / 2;
+        mainLabels.push({
+          x: cx + midR * Math.cos(midAngle),
+          y: cy + midR * Math.sin(midAngle),
+          text: `${pct.toFixed(2)}%`
+        });
+      } else if(pct > 0){
+        smallSlices.push({ midAngle, pct });
+      }
+    }
+    angle += sweep;
+  });
+  doc.setFillColor(255, 255, 255);
+  doc.circle(cx, cy, innerR, 'F');
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(5.3);
+  doc.setTextColor(255, 255, 255);
+  mainLabels.forEach(lp => {
+    doc.text(lp.text, lp.x, lp.y + 0.85, { align: 'center' });
+  });
+
+  if(smallSlices.length){
+    // Group slivers that sit next to each other under one shared label
+    // (two short leader lines converging on one percentage), rather than
+    // stacking separate tiny labels on top of each other.
+    const clusters = [];
+    smallSlices.forEach(s => {
+      const last = clusters[clusters.length - 1];
+      if(last && (s.midAngle - last.members[last.members.length - 1].midAngle) < 0.35){
+        last.members.push(s);
+      } else {
+        clusters.push({ members: [s] });
+      }
+    });
+
+    doc.setDrawColor(140, 146, 156);
+    doc.setLineWidth(0.15);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(5.6);
+    doc.setTextColor(70, 76, 86);
+
+    clusters.forEach(cluster => {
+      const totalPct = cluster.members.reduce((a, m) => a + m.pct, 0);
+      const avgAngle = cluster.members.reduce((a, m) => a + m.midAngle, 0) / cluster.members.length;
+      const apexR = outerR + 4;
+      const apexX = cx + apexR * Math.cos(avgAngle);
+      const apexY = cy + apexR * Math.sin(avgAngle);
+
+      cluster.members.forEach(m => {
+        const startX = cx + outerR * Math.cos(m.midAngle);
+        const startY = cy + outerR * Math.sin(m.midAngle);
+        doc.line(startX, startY, apexX, apexY);
+      });
+
+      doc.text(`${totalPct.toFixed(2)}%`, apexX, apexY - 0.8, { align: 'center' });
+    });
+  }
+}
+
+// A small, dependency-free vector table renderer (replaces jsPDF-AutoTable,
+// which was failing to attach to jsPDF in some environments). Handles
+// automatic pagination with a repeating header row, full-width "group"
+// rows, and simple colored-swatch cells for legends.
+
+// Draws the "Underlying" card grid on the fundamentals section: one small
+// bordered card per underlying (up to 5, since that's the top-5-by-cost
+// list), each with its own Currency/Avg strike/Avg KI/Avg KO/Avg coupon mini
+// table \u2014 all placed in a single row, side by side, so everything fits on
+// page 1. Returns the y position just below the tallest card.
+function drawFundamentalCardsGrid(doc, x, startY, totalW, underlyings){
+  const n = Math.max(underlyings.length, 1);
+  const gap = 3;
+  const colW = (totalW - gap * (n - 1)) / n;
+  const padding = 2;
+  let maxBottom = startY;
+
+  underlyings.forEach((u, i) => {
+    const cx = x + i * (colW + gap);
+    const cy = startY;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(7.6);
+    doc.setTextColor(20, 30, 45);
+    const titleLines = doc.splitTextToSize(u.name, colW - padding * 2);
+    titleLines.forEach((line, li) => doc.text(line, cx + padding, cy + padding + 2.8 + li * 3.3));
+    const titleH = padding + titleLines.length * 3.3 + 2;
+
+    const innerW = colW - padding * 2;
+    const tableEndY = drawVectorTable(doc, {
+      x: cx + padding,
+      startY: cy + titleH,
+      colWidths: [innerW * 0.16, innerW * 0.21, innerW * 0.21, innerW * 0.21, innerW * 0.21],
+      columns: [
+        { header: 'Ccy' }, { header: 'Strike', align: 'right' },
+        { header: 'KI', align: 'right' }, { header: 'KO', align: 'right' },
+        { header: 'Cpn', align: 'right' }
+      ],
+      body: u.byCcy.map(c => ({ cells: [c.ccy, c.avgStrike, c.avgKi, c.avgKo, c.avgCoupon] })),
+      fontSize: 6,
+      headFontSize: 6,
+      cellPadding: 0.9
+    });
+
+    const cardBottom = tableEndY + padding;
+    if(cardBottom > maxBottom) maxBottom = cardBottom;
+  });
+
+  return maxBottom;
+}
+
+function drawVectorTable(doc, opts){
+  const {
+    x, startY, colWidths, columns, body,
+    pageH = doc.internal.pageSize.getHeight(),
+    marginTop = 10, marginBottom = 10,
+    fontSize = 7.3, headFontSize = 7.3, cellPadding = 1.4,
+    headFill = [24, 60, 90], headTextColor = [255, 255, 255],
+    groupFill = [234, 239, 245], groupTextColor = [20, 30, 45], groupFontSize = 8.3,
+    borderColor = [210, 215, 222], showHeader = true, showBorders = true,
+    bodyTextColor = [40, 46, 56]
+  } = opts;
+
+  const tableWidth = colWidths.reduce((a, b) => a + b, 0);
+  const mmPerPt = 0.3528;
+  let y = startY;
+
+  function lineHeightFor(fs){ return fs * mmPerPt * 1.25; }
+
+  function drawCellBorders(rowH){
+    if(!showBorders) return;
+    doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+    doc.rect(x, y, tableWidth, rowH);
+    let bx = x;
+    colWidths.forEach(w => { doc.line(bx, y, bx, y + rowH); bx += w; });
+    doc.line(x + tableWidth, y, x + tableWidth, y + rowH);
+  }
+
+  function drawHeaderRow(){
+    if(!showHeader) return;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(headFontSize);
+    const lh = lineHeightFor(headFontSize);
+    const rowH = lh + cellPadding * 2;
+    doc.setFillColor(headFill[0], headFill[1], headFill[2]);
+    doc.rect(x, y, tableWidth, rowH, 'F');
+    doc.setTextColor(headTextColor[0], headTextColor[1], headTextColor[2]);
+    let cx = x;
+    columns.forEach((col, i) => {
+      const align = col.align || 'left';
+      const tx = align === 'right' ? cx + colWidths[i] - cellPadding : cx + cellPadding;
+      doc.text(String(col.header), tx, y + cellPadding + lh * 0.78, { align });
+      cx += colWidths[i];
+    });
+    drawCellBorders(rowH);
+    y += rowH;
+  }
+
+  function ensureSpace(rowH){
+    if(y + rowH > pageH - marginBottom){
+      doc.addPage();
+      y = marginTop;
+      drawHeaderRow();
+    }
+  }
+
+  function drawGroupRow(text){
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(groupFontSize);
+    const lh = lineHeightFor(groupFontSize);
+    const rowH = lh + cellPadding * 2;
+    ensureSpace(rowH);
+    doc.setFillColor(groupFill[0], groupFill[1], groupFill[2]);
+    doc.rect(x, y, tableWidth, rowH, 'F');
+    doc.setTextColor(groupTextColor[0], groupTextColor[1], groupTextColor[2]);
+    doc.text(String(text), x + cellPadding, y + cellPadding + lh * 0.78, { align: 'left' });
+    if(showBorders){
+      // Group rows are visually one merged cell spanning the full table width
+      // (like a colspan), so only the outer rectangle is drawn here \u2014
+      // no internal column-divider lines, which would otherwise cut through the text.
+      doc.setDrawColor(borderColor[0], borderColor[1], borderColor[2]);
+      doc.rect(x, y, tableWidth, rowH);
+    }
+    y += rowH;
+  }
+
+  function drawEmptyRow(text){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(fontSize);
+    const lh = lineHeightFor(fontSize);
+    const rowH = lh + cellPadding * 2;
+    ensureSpace(rowH);
+    doc.setTextColor(150, 155, 165);
+    doc.text(String(text), x + cellPadding, y + cellPadding + lh * 0.78);
+    drawCellBorders(rowH);
+    y += rowH;
+  }
+
+  function drawDataRow(cells){
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(fontSize);
+    const lh = lineHeightFor(fontSize);
+    const wrapped = cells.map((val, i) => {
+      if(val && typeof val === 'object' && val.swatch) return [''];
+      return doc.splitTextToSize(String(val == null ? '' : val), Math.max(4, colWidths[i] - cellPadding * 2));
+    });
+    const maxLines = Math.max(1, ...wrapped.map(w => w.length));
+    const rowH = maxLines * lh + cellPadding * 2;
+    ensureSpace(rowH);
+    // ensureSpace() may have just redrawn the header row on a new page, which
+    // leaves the PDF's font set to bold \u2014 reset it before drawing this row's text.
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(fontSize);
+    doc.setTextColor(bodyTextColor[0], bodyTextColor[1], bodyTextColor[2]);
+    let cx = x;
+    columns.forEach((col, i) => {
+      const val = cells[i];
+      if(val && typeof val === 'object' && val.swatch){
+        const rgb = hexToRgb(val.swatch);
+        doc.setFillColor(rgb[0], rgb[1], rgb[2]);
+        const sz = Math.min(colWidths[i] - 1, lh * 0.75);
+        doc.rect(cx + (colWidths[i] - sz) / 2, y + rowH / 2 - sz / 2, sz, sz, 'F');
+      } else {
+        const align = col.align || 'left';
+        const lines = wrapped[i];
+        lines.forEach((line, li) => {
+          const tx = align === 'right' ? cx + colWidths[i] - cellPadding : cx + cellPadding;
+          doc.text(line, tx, y + cellPadding + lh * 0.78 + li * lh, { align });
+        });
+      }
+      cx += colWidths[i];
+    });
+    drawCellBorders(rowH);
+    y += rowH;
+  }
+
+  drawHeaderRow();
+  body.forEach(row => {
+    if(row.group) drawGroupRow(row.text);
+    else if(row.empty) drawEmptyRow(row.text);
+    else drawDataRow(row.cells);
+  });
+
+  return y;
+}
+
+// Draws a titled donut chart with its legend table, used for both pie
+// panels on page 1.
+// Sums each row's Cost (converted to USD via the given rates) by Advisor
+// Name, and returns {name, value} pairs sorted largest notional first.
+// Shared by the "All Advisors" on-screen list and the PDF.
+function computeAdvisorNotionalRanking(headers, rows, rates){
+  const advIdx = colIndex(headers, 'Advisor Name');
+  if(advIdx < 0) return [];
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+  const costIdx = colIndex(headers, 'Cost');
+
+  const totals = {};
+  rows.forEach(r => {
+    const advisor = String(r[advIdx] || '').trim();
+    if(!advisor) return;
+    const ccy = ccyIdx >= 0 ? String(r[ccyIdx] || '').trim().toUpperCase() : 'USD';
+    const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx] || '').replace(/,/g, '')) : 0;
+    if(isNaN(costVal)) return;
+    const rate = (ccy === 'USD') ? 1 : (rates[ccy] || rates[CCY_ALIAS[ccy]] || 1);
+    totals[advisor] = (totals[advisor] || 0) + costVal / rate;
+  });
+
+  return Object.entries(totals).sort((a, b) => b[1] - a[1]).map(([name, value]) => ({ name, value }));
+}
+
+// Draws the "Top 10 Advisors by Notional" panel that replaces the Client
+// holdings donut on page 1 of the "All Advisors" PDF: a title/subtitle, then
+// the 10 advisors split into two 5-row columns (rank, name, notional).
+function drawAdvisorRankingSection(doc, x, y, w, entries){
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+  doc.setTextColor(20, 30, 45);
+  doc.text('Top 10 advisors by notional', x, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text('Advisors managing the largest total notional, converted to USD', x, y + 4.5);
+
+  if(!entries.length){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+    doc.setTextColor(150, 155, 165);
+    doc.text('No advisor data available.', x, y + 18);
+    return y + 22;
+  }
+
+  const startY = y + 9;
+  const gap = 8;
+  const halfW = (w - gap) / 2;
+  const halves = [entries.slice(0, 5), entries.slice(5, 10)];
+  let maxEndY = startY;
+
+  halves.forEach((half, i) => {
+    if(!half.length) return;
+    const endY = drawVectorTable(doc, {
+      x: x + i * (halfW + gap),
+      startY,
+      colWidths: [halfW * 0.12, halfW * 0.58, halfW * 0.30],
+      columns: [
+        { header: '#' }, { header: 'Advisor' }, { header: 'Notional', align: 'right' }
+      ],
+      body: half.map((e, idx) => ({
+        cells: [`${i * 5 + idx + 1}`, toTitleCase(e.name), `USD ${Math.round(e.value).toLocaleString('en-US')}`]
+      })),
+      fontSize: 7.3,
+      headFontSize: 7.3,
+      cellPadding: 1.6
+    });
+    if(endY > maxEndY) maxEndY = endY;
+  });
+
+  return maxEndY;
+}
+
+function drawDonutSection(doc, x, y, w, title, subtitle, dataMap, topN = 5){
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5);
+  doc.setTextColor(20, 30, 45);
+  doc.text(title, x, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text(subtitle, x, y + 4.5);
+
+  const slices = computePieSlices(dataMap, topN);
+  if(slices.total <= 0){
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(8);
+    doc.setTextColor(150, 155, 165);
+    doc.text('No data available.', x, y + 18);
+    return y + 22;
+  }
+
+  const cx = x + 19;
+  const cy = y + 30;
+  drawDonutChart(doc, cx, cy, 16, 8.5, slices);
+
+  // Vertically center the legend list against the donut's own vertical
+  // center, rather than always starting it flush at the top of the panel —
+  // otherwise a short legend (1-2 rows) sits stranded near the title while
+  // the donut is much taller.
+  const legendFontSize = 7.3, legendCellPadding = 1;
+  const legendRowH = (legendFontSize * 0.3528 * 1.25) + legendCellPadding * 2;
+  const legendTotalH = legendRowH * slices.labels.length;
+  const legendStartY = Math.max(y + 9, cy - legendTotalH / 2);
+
+  const legendX = x + 42;
+  const legendEndY = drawVectorTable(doc, {
+    x: legendX,
+    startY: legendStartY,
+    colWidths: [3.5, x + w - legendX - 3.5 - 24 - 15, 24, 15],
+    columns: [
+      { header: '' },
+      { header: '' },
+      { header: '', align: 'right' },
+      { header: '', align: 'right' }
+    ],
+    body: slices.labels.map((name, i) => ({
+      cells: [
+        { swatch: slices.colors[i] },
+        name,
+        `USD ${Math.round(slices.values[i]).toLocaleString('en-US')}`,
+        `${slices.pcts[i].toFixed(2)}%`
+      ]
+    })),
+    showHeader: false,
+    showBorders: false,
+    fontSize: legendFontSize,
+    cellPadding: legendCellPadding,
+    bodyTextColor: [50, 58, 70]
+  });
+
+  return Math.max(cy + 16, legendEndY);
+}
+
+// Renders one advisor's report (page 1 charts+fundamentals, page 2+ data
+// table) into a jsPDF document natively (real vector text/shapes — no
+// screenshots), and resolves with the resulting Blob. This never touches
+// the visible DOM, so it can run silently in the background.
+async function generateAdvisorPdfBlob(advisorName){
+  const data = window.__dashboardData;
+  const headers = data.headers;
+  const dataRows = data.dataRows;
+  const advisorLabelName = advisorName || "";
+
+  const advIdx = colIndex(headers, 'Advisor Name');
+  const filteredRows = (advisorLabelName && advisorLabelName.trim() !== "" && advIdx >= 0)
+    ? dataRows.filter(r => String(r[advIdx] || '').trim() === advisorLabelName)
+    : dataRows;
+
+  const { rates } = await fetchCurrencyConverterRates();
+
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+  const costIdx = colIndex(headers, 'Cost');
+  const masterIdx = colIndex(headers, 'Master ID');
+  const undIdx = colIndex(headers, 'Underlying Name');
+  const fundNameIdx = colIndex(headers, 'Port. Fund Name');
+
+  let totalUsd = 0;
+  const masterIds = new Set();
+  const underlyingCosts = {};
+  const clientValues = {};
+
+  filteredRows.forEach(r => {
+    const ccy = ccyIdx >= 0 ? String(r[ccyIdx] || '').trim().toUpperCase() : 'USD';
+    const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx] || '').replace(/,/g, '')) : 0;
+    const rate = (ccy === 'USD') ? 1 : (rates[ccy] || rates[CCY_ALIAS[ccy]] || 1);
+    const usdVal = !isNaN(costVal) ? costVal / rate : 0;
+
+    if(!isNaN(costVal)) totalUsd += usdVal;
+    if(masterIdx >= 0){
+      const m = String(r[masterIdx] || '').trim();
+      if(m) masterIds.add(m);
+    }
+    if(undIdx >= 0){
+      const und = String(r[undIdx] || '').trim() || 'Unspecified';
+      underlyingCosts[und] = (underlyingCosts[und] || 0) + usdVal;
+    }
+    if(fundNameIdx >= 0){
+      const client = String(r[fundNameIdx] || '').trim() || 'Unspecified Client';
+      clientValues[client] = (clientValues[client] || 0) + usdVal;
+    }
+  });
+
+  const productCount = masterIds.size || filteredRows.length;
+  const fundamentals = computeFundamentalsData(headers, filteredRows, underlyingCosts);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const M = 10;
+
+  // ---- Page 1: header, stats, pies, fundamentals ----
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(15);
+  doc.setTextColor(20, 30, 45);
+  doc.text('Structured Product Dashboard', M, 16);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5);
+  doc.setTextColor(90, 100, 115);
+  const advisorLabel = advisorLabelName ? `Advisor: ${toTitleCase(advisorLabelName)}` : 'Advisor: All Holdings';
+  doc.text(advisorLabel, M, 22.5);
+
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+  doc.setTextColor(20, 30, 45);
+  doc.text(`USD ${Math.round(totalUsd).toLocaleString('en-US')}`, pageW - M, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text('Total Notional', pageW - M, 20.5, { align: 'right' });
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+  doc.setTextColor(20, 30, 45);
+  doc.text(`${productCount.toLocaleString()}`, pageW - M - 45, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text('No. of Products', pageW - M - 45, 20.5, { align: 'right' });
+
+  doc.setDrawColor(220, 224, 230);
+  doc.line(M, 26, pageW - M, 26);
+
+  const colW = (pageW - M * 2 - 10) / 2;
+  const pieTopN = getPieTopN(advisorLabelName);
+  const isAllAdvisors = !advisorLabelName;
+  const leftEndY = drawDonutSection(doc, M, 34, colW, 'Underlying allocation', 'Share of cost by underlying stock', underlyingCosts, pieTopN);
+  let rightEndY;
+  if(isAllAdvisors){
+    const topAdvisors = computeAdvisorNotionalRanking(headers, filteredRows, rates).slice(0, 10);
+    rightEndY = drawAdvisorRankingSection(doc, M + colW + 10, 34, colW, topAdvisors);
+  } else {
+    rightEndY = drawDonutSection(doc, M + colW + 10, 34, colW, 'Client holdings', 'Share of total portfolio value by client', clientValues, pieTopN);
+  }
+
+  // Leave clear, consistent space below the taller of the two panels above
+  // (the donut+legend or the advisor ranking table) before the next section,
+  // rather than a fixed position that can sit too close \u2014 or overlap \u2014
+  // when one panel runs longer than the other.
+  const fundY = Math.max(leftEndY, rightEndY, 100) + 10;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.setTextColor(20, 30, 45);
+  doc.text('Fundamental observations', M, fundY);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text('Average strike, KI, KO and coupon for the top 5 underlyings by cost, broken down by currency', M, fundY + 4.5);
+
+  const fundTableY = fundY + 8;
+  const fundColW = pageW - M * 2;
+  const fundHasData = fundamentals.topUnderlyings.length > 0;
+
+  const cardsEndY = fundHasData
+    ? drawFundamentalCardsGrid(doc, M, fundTableY, fundColW, fundamentals.topUnderlyings)
+    : (() => {
+        doc.setFont('helvetica', 'italic'); doc.setFontSize(7.8);
+        doc.setTextColor(150, 155, 165);
+        doc.text('No underlying data available.', M, fundTableY + 5);
+        return fundTableY + 9;
+      })();
+
+  // ---- Page 2+: full data table, grouped by deal reference ----
+  doc.addPage();
+  const groups = computePrintTableGroups(headers, dataRows, advisorLabelName);
+  const body2 = [];
+  groups.forEach(g => {
+    body2.push({ group: true, text: g.headerText });
+    g.rows.forEach(row => body2.push({ cells: row }));
+  });
+  if(!body2.length) body2.push({ empty: true, text: 'No holdings found for this advisor.' });
+
+  const tableColWidths = [16, 58, 30, 17, 21, 21, 15, 24, 24, 34];
+  drawVectorTable(doc, {
+    x: M,
+    startY: M,
+    marginTop: M,
+    marginBottom: M,
+    colWidths: tableColWidths,
+    columns: [
+      { header: 'ID' }, { header: 'Underlying(s)' }, { header: 'Principal', align: 'right' },
+      { header: 'Strike', align: 'right' }, { header: 'KI / KO', align: 'right' },
+      { header: 'Coupon (p.a.)', align: 'right' }, { header: 'Tenor' },
+      { header: 'Start Date' }, { header: 'End Date' }, { header: 'Status' }
+    ],
+    body: body2,
+    fontSize: 7.3,
+    headFontSize: 7.3,
+    cellPadding: 1.4
+  });
+
+  // ---- "Generated on" stamp, top right of every page ----
+  const generatedStamp = `Generated on: ${formatGeneratedStamp(new Date())}`;
+  const totalPages = doc.getNumberOfPages();
+  for(let pg = 1; pg <= totalPages; pg++){
+    doc.setPage(pg);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+    doc.setTextColor(90, 100, 115);
+    doc.text(generatedStamp, pageW - M, 8, { align: 'right' });
+  }
+
+  return doc.output('blob');
+}
+
+// d/m/yyyy, h:mm:ss AM/PM  (e.g. 28/9/2026, 2:45:47 PM)
+function formatGeneratedStamp(d){
+  const h24 = d.getHours();
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  const ss = String(d.getSeconds()).padStart(2, '0');
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}, ${h12}:${mm}:${ss} ${h24 >= 12 ? 'PM' : 'AM'}`;
+}
+
+
+let __bulkPdfCancelled = false;
+
+exportAllPdfBtn.addEventListener('click', async () => {
+  const data = window.__dashboardData;
+  if (!data || !window.__advisorCodeMap) {
+    alert('No data loaded to export.');
+    return;
+  }
+
+  const advisors = Object.keys(window.__advisorCodeMap);
+  if (advisors.length === 0) {
+    alert('No advisors detected in the dataset.');
+    return;
+  }
+
+  exportAllPdfBtn.disabled = true;
+  exportZipBtn.disabled = true;
+  exportPdfBtn.disabled = true;
+  exportTop10Btn.disabled = true;
+
+  __bulkPdfCancelled = false;
+  const overlay = document.getElementById('bulkPdfOverlay');
+  const overlayTitle = document.getElementById('bulkPdfOverlayTitle');
+  const overlaySub = document.getElementById('bulkPdfOverlaySub');
+  const cancelBtn = document.getElementById('bulkPdfCancelBtn');
+  const onCancelClick = () => { __bulkPdfCancelled = true; overlayTitle.textContent = 'Cancelling…'; };
+  cancelBtn.addEventListener('click', onCancelClick);
+  overlay.classList.add('active');
+
+  try {
+    const zip = new JSZip();
+    const folder = zip.folder('Advisor_Dashboard_Reports');
+    let generatedCount = 0;
+
+    for (let i = 0; i < advisors.length; i++) {
+      if(__bulkPdfCancelled) break;
+      const advisor = advisors[i];
+      const progressText = `Generating PDF report ${i + 1} of ${advisors.length}`;
+      setBtnLabel(exportAllPdfBtn, `${i + 1} / ${advisors.length}`);
+      overlayTitle.textContent = progressText;
+      overlaySub.textContent = advisor;
+      const blob = await generateAdvisorPdfBlob(advisor);
+      if(__bulkPdfCancelled) break;
+      const safeName = advisor.replace(/[^a-zA-Z0-9-_]/g, '_');
+      folder.file(`${safeName}_report.pdf`, blob);
+      generatedCount++;
+    }
+
+    if(__bulkPdfCancelled){
+      overlayTitle.textContent = 'Cancelled';
+      overlaySub.textContent = 'PDF generation was cancelled — no file was downloaded.';
+    } else if(generatedCount > 0){
+      overlayTitle.textContent = 'Zipping PDF reports…';
+      overlaySub.textContent = 'Almost done.';
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'All_Advisor_Dashboard_Reports.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.error('Error generating PDF reports:', err);
+    alert('Failed to generate PDF reports: ' + err.message);
+  } finally {
+    cancelBtn.removeEventListener('click', onCancelClick);
+    overlay.classList.remove('active');
+
+    setBtnLabel(exportAllPdfBtn, 'PDFs .zip');
+    exportAllPdfBtn.disabled = false;
+    exportZipBtn.disabled = false;
+    exportPdfBtn.disabled = false;
+    exportTop10Btn.disabled = false;
+  }
+});
+
+// Ranks every advisor by total notional (Cost converted to USD, summed across
+// all of their live rows) \u2014 the exact same per-row conversion used inside
+// generateAdvisorPdfBlob \u2014 and returns the top N advisor names, largest first.
+async function getTopAdvisorsByNotionalUsd(n){
+  const data = window.__dashboardData;
+  const headers = data.headers;
+  const dataRows = data.dataRows;
+
+  const advIdx = colIndex(headers, 'Advisor Name');
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+  const costIdx = colIndex(headers, 'Cost');
+
+  const { rates } = await fetchCurrencyConverterRates();
+
+  const totals = {};
+  dataRows.forEach(r => {
+    const advisor = advIdx >= 0 ? String(r[advIdx] || '').trim() : '';
+    if(!advisor) return;
+    const ccy = ccyIdx >= 0 ? String(r[ccyIdx] || '').trim().toUpperCase() : 'USD';
+    const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx] || '').replace(/,/g, '')) : 0;
+    const rate = (ccy === 'USD') ? 1 : (rates[ccy] || rates[CCY_ALIAS[ccy]] || 1);
+    const usdVal = !isNaN(costVal) ? costVal / rate : 0;
+    totals[advisor] = (totals[advisor] || 0) + usdVal;
+  });
+
+  return Object.entries(totals)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(e => e[0]);
+}
+
+exportTop10Btn.addEventListener('click', async () => {
+  const data = window.__dashboardData;
+  if (!data || !window.__advisorCodeMap) {
+    alert('No data loaded to export.');
+    return;
+  }
+
+  exportTop10Btn.disabled = true;
+  exportAllPdfBtn.disabled = true;
+  exportZipBtn.disabled = true;
+  exportPdfBtn.disabled = true;
+
+  __bulkPdfCancelled = false;
+  const overlay = document.getElementById('bulkPdfOverlay');
+  const overlayTitle = document.getElementById('bulkPdfOverlayTitle');
+  const overlaySub = document.getElementById('bulkPdfOverlaySub');
+  const cancelBtn = document.getElementById('bulkPdfCancelBtn');
+  const onCancelClick = () => { __bulkPdfCancelled = true; overlayTitle.textContent = 'Cancelling\u2026'; };
+  cancelBtn.addEventListener('click', onCancelClick);
+  overlay.classList.add('active');
+  overlayTitle.textContent = 'Ranking advisors by notional\u2026';
+  overlaySub.textContent = '';
+
+  try {
+    const advisors = await getTopAdvisorsByNotionalUsd(10);
+    if (advisors.length === 0) {
+      alert('No advisors with notional found in the dataset.');
+      return;
+    }
+
+    const zip = new JSZip();
+    const folder = zip.folder('Top_10_Advisor_Dashboard_Reports');
+    let generatedCount = 0;
+
+    for (let i = 0; i < advisors.length; i++) {
+      if(__bulkPdfCancelled) break;
+      const advisor = advisors[i];
+      const progressText = `Generating PDF report ${i + 1} of ${advisors.length}`;
+      setBtnLabel(exportTop10Btn, `${i + 1} / ${advisors.length}`);
+      overlayTitle.textContent = progressText;
+      overlaySub.textContent = `#${i + 1} \u2014 ${advisor}`;
+      const blob = await generateAdvisorPdfBlob(advisor);
+      if(__bulkPdfCancelled) break;
+      const safeName = advisor.replace(/[^a-zA-Z0-9-_]/g, '_');
+      folder.file(`${i + 1}_${safeName}_report.pdf`, blob);
+      generatedCount++;
+    }
+
+    if(__bulkPdfCancelled){
+      overlayTitle.textContent = 'Cancelled';
+      overlaySub.textContent = 'PDF generation was cancelled \u2014 no file was downloaded.';
+    } else if(generatedCount > 0){
+      overlayTitle.textContent = 'Zipping PDF reports\u2026';
+      overlaySub.textContent = 'Almost done.';
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'Top_10_Advisor_Dashboard_Reports.zip';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  } catch (err) {
+    console.error('Error generating top 10 advisor PDF reports:', err);
+    alert('Failed to generate PDF reports: ' + err.message);
+  } finally {
+    cancelBtn.removeEventListener('click', onCancelClick);
+    overlay.classList.remove('active');
+
+    setBtnLabel(exportTop10Btn, 'Top 10 Advisors .zip');
+    exportTop10Btn.disabled = false;
+    exportAllPdfBtn.disabled = false;
+    exportZipBtn.disabled = false;
+    exportPdfBtn.disabled = false;
+  }
+});
+
+
+// ---- "Copy CSV" buttons on the Underlying allocation / Client holdings panels ----
+// Copies the full breakdown (every underlying / client, largest first) for the
+// currently selected advisor. The clipboard carries CSV as plain text plus an
+// HTML table, so pasting into Excel lands each value in its own cell.
+function buildPieCopyData(dataMap, colLabel){
+  const entries = Object.entries(dataMap || {}).sort((a, b) => b[1] - a[1]);
+  const total = entries.reduce((acc, e) => acc + e[1], 0);
+  const header = [colLabel, 'USD', 'Share (%)'];
+  const pctList = roundedPcts(entries.map(e => e[1]), total);
+  const rows = entries.map((e, i) => [
+    e[0],
+    (Math.round(e[1] * 100) / 100).toFixed(2),
+    pctList[i].toFixed(2)
+  ]);
+  const csvCell = v => {
+    const t = String(v);
+    return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  };
+  const csv = [header].concat(rows).map(r => r.map(csvCell).join(',')).join('\r\n');
+  // nowrap (attribute + style) so Excel pastes the cells with Wrap Text off.
+  const htmlRow = (r, tag) => '<tr>' + r.map(c => `<${tag} nowrap style="white-space:nowrap;">${escapeHtml(String(c))}</${tag}>`).join('') + '</tr>';
+  const html = '<table>' + htmlRow(header, 'th') + rows.map(r => htmlRow(r, 'td')).join('') + '</table>';
+  return { csv, html, count: rows.length };
+}
+
+async function copyCsvToClipboard(csv, html){
+  try {
+    if(navigator.clipboard && window.ClipboardItem){
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/plain': new Blob([csv], { type: 'text/plain' }),
+        'text/html': new Blob([html], { type: 'text/html' })
+      })]);
+      return true;
+    }
+  } catch(err){ /* fall through to the legacy path */ }
+  try {
+    let ok = false;
+    const onCopy = e => {
+      e.clipboardData.setData('text/plain', csv);
+      e.clipboardData.setData('text/html', html);
+      e.preventDefault();
+      ok = true;
+    };
+    document.addEventListener('copy', onCopy);
+    const ta = document.createElement('textarea');
+    ta.value = csv;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    document.removeEventListener('copy', onCopy);
+    return ok;
+  } catch(err){
+    return false;
+  }
+}
+
+document.querySelectorAll('.copy-csv-btn').forEach(btn => {
+  const originalLabel = btn.textContent;
+  btn.addEventListener('click', async () => {
+    const sums = window.__lastPieSums;
+    const dataMap = sums ? sums[btn.dataset.source] : null;
+    if(!dataMap || Object.keys(dataMap).length === 0){
+      btn.textContent = 'No data';
+    } else {
+      const { csv, html } = buildPieCopyData(dataMap, btn.dataset.col);
+      const ok = await copyCsvToClipboard(csv, html);
+      btn.textContent = ok ? 'Copied \u2713' : 'Copy failed';
+    }
+    setTimeout(() => { btn.textContent = originalLabel; }, 1600);
+  });
+});
+
+function setBtnLabel(btn, text){
+  const l = btn.querySelector('.dl-label');
+  if(l) l.textContent = text;
+}
+
+function setPieChartsPdfMode(enabled){
+  const container = document.querySelector('.print-pies-container');
+  if(container) container.classList.toggle('pdf-mode', enabled);
+  ['underlyingPie','clientPie'].forEach(id => {
+    const canvasEl = document.getElementById(id);
+    if(!canvasEl) return;
+    const layout = canvasEl.closest('.pie-layout');
+    if(!layout) return;
+    layout.classList.toggle('pdf-mode', enabled);
+    const wrap = layout.querySelector('.pie-canvas-wrap');
+    const legend = layout.querySelector('.pie-legend');
+    if(wrap) wrap.classList.toggle('pdf-mode', enabled);
+    if(legend) legend.classList.toggle('pdf-mode', enabled);
+  });
+
+  void document.querySelector('.print-pies-container')?.offsetHeight;
+
+  const sums = window.__lastPieSums || { underlying: {}, client: {} };
+  const mode = enabled ? 'print' : 'screen';
+  const topN = window.__lastPieTopN || 5;
+  renderPieChart('underlyingPie', 'underlyingLegend', sums.underlying, 'No cost data available.', mode, topN);
+  renderPieChart('clientPie', 'clientLegend', sums.client, 'No client data available.', mode, topN);
+
+  Object.values(charts).forEach(chart => {
+    chart.resize();
+    chart.update('none');
+  });
+}
+
+window.addEventListener('beforeprint', () => {
+  preparePrintView();
+});
+
+window.addEventListener('afterprint', () => {
+  Object.values(charts).forEach(chart => {
+    chart.options.maintainAspectRatio = true;
+    chart.resize();
+  });
+  document.title = originalDocTitle;
+  setPieChartsPdfMode(false);
+});
+
+browseBtn.addEventListener('click', (e) => { e.stopPropagation(); fileInput.click(); });
+dropArea.addEventListener('click', () => { fileInput.click(); });
+
+['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+  window.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+});
+['dragenter', 'dragover'].forEach(eventName => {
+  dropArea.addEventListener(eventName, () => { dropArea.classList.add('drag'); }, false);
+});
+['dragleave', 'drop'].forEach(eventName => {
+  dropArea.addEventListener(eventName, () => { dropArea.classList.remove('drag'); }, false);
+});
+dropArea.addEventListener('drop', (e) => {
+  const files = e.dataTransfer.files;
+  if (files && files.length > 0) handleFile(files[0]);
+}, false);
+
+fileInput.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if(!f) return;
+  // Replacing an already-loaded dashboard: clear the old state first, then load the new file.
+  if(resultZone.style.display !== 'none') resetDashboardState();
+  handleFile(f);
+});
+
+// "Upload a different file" opens the file picker straight away. Nothing changes
+// until a file is actually chosen, so cancelling the dialog keeps the current dashboard.
+resetBtn.addEventListener('click', () => {
+  fileInput.value = '';
+  fileInput.click();
+});
+
+function resetDashboardState(){
+  idbDel().catch(()=>{}); localStorage.removeItem('dashboard_raw_file');
+  resultZone.style.display = 'none';
+  uploadZone.style.display = 'block';
+  dropArea.style.display = 'block';
+  dropArea.classList.remove('drag');
+  document.querySelector('.privacy-note').style.display = 'flex';
+  statusRow.style.display = 'none';
+  errorBox.style.display = 'none';
+  fileInput.value = '';
+  document.getElementById('showAllToggle').checked = false;
+  currentSortColumn = null;
+  currentSortDirection = 'asc';
+  activeColumnFilters = {};
+  selectedAdvisorValue = "";
+  Object.keys(charts).forEach(k=>{ charts[k].destroy(); delete charts[k]; });
+  window.__dashboardData = null;
+  window.__advisorCodeMap = null;
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  // Hide the upload screen while checking for a previous upload (avoids a flash)
+  uploadZone.style.visibility = 'hidden';
+  try {
+    let parsed = await idbGet();
+    if (!parsed) {
+      // migrate from the old localStorage format if present
+      const legacy = localStorage.getItem('dashboard_raw_file');
+      if (legacy) parsed = JSON.parse(legacy);
+    }
+    if (parsed) {
+      renderResults({ name: parsed.fileName }, parsed.sheetName, parsed.headers, parsed.dataRows, parsed.extra);
+    }
+  } catch (e) {
+    // Keep the saved data; just fall back to the upload screen this time
+    console.error('Could not load cached dashboard data', e);
+    uploadZone.style.display = 'block';
+    resultZone.style.display = 'none';
+  } finally {
+    uploadZone.style.visibility = 'visible';
+  }
+});
+
+function showError(msg){
+  statusRow.style.display = 'none';
+  dropArea.style.display = 'block';
+  const pn = document.querySelector('.privacy-note');
+  if(pn) pn.style.display = 'flex';
+  errorBox.style.display = 'block';
+  errorBox.textContent = msg;
+}
+
+const ALLOWED_STATUSES = ['Active','Coupon Event','Pending Active','PS (Coupon Event)'];
+
+function toTitleCase(str) {
+  if (!str) return '';
+  return str.toLowerCase().split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+function unmergeFill(ws, rows){
+  const merges = ws['!merges'] || [];
+  merges.forEach(m=>{
+    const {s,e} = m;
+    if(!rows[s.r]) return;
+    const topLeftVal = rows[s.r][s.c];
+    if(topLeftVal === undefined || topLeftVal === '') return;
+    for(let r=s.r; r<=e.r; r++){
+      if(!rows[r]) rows[r] = [];
+      for(let c=s.c; c<=e.c; c++){
+        if(rows[r][c] === undefined || rows[r][c] === '') rows[r][c] = topLeftVal;
+      }
+    }
+  });
+  return rows;
+}
+
+function findHeaderRow(rows){
+  const markers = ['status','advisor name','master id','underlying name'];
+  for(let i=0;i<Math.min(rows.length, 10);i++){
+    const rowVals = (rows[i]||[]).map(v => String(v||'').trim().toLowerCase());
+    if(markers.filter(m => rowVals.includes(m)).length >= 2) return i;
+  }
+  return 0;
+}
+
+function handleFile(file){
+  errorBox.style.display = 'none';
+  uploadZone.querySelector('#dropArea').style.display = 'none';
+  document.querySelector('.privacy-note').style.display = 'none';
+  statusRow.style.display = 'flex';
+  statusText.textContent = 'Reading file\u2026';
+
+  const reader = new FileReader();
+  reader.onerror = () => showError('Could not read that file.');
+  reader.onload = (e) => {
+    try{
+      statusText.textContent = 'Parsing spreadsheet\u2026';
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      let rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:'', raw:false});
+      rows = unmergeFill(ws, rows);
+
+      if(!rows || rows.length < 2){
+        showError('That file looks empty.');
+        return;
+      }
+
+      const headerIdx = findHeaderRow(rows);
+      let headers = (rows[headerIdx]||[]).map(h => String(h||'').trim());
+      let dataRows = rows.slice(headerIdx+1).filter(r => r.some(c => String(c||'').trim() !== ''));
+
+      if(dataRows.length && dataRows[0].filter(c=>String(c||'').trim()!=='').length <= 2){
+        dataRows = dataRows.slice(1);
+      }
+
+      const underlyingNameIdx = colIndex(headers, 'Underlying Name');
+      if(underlyingNameIdx >= 0){
+        dataRows.forEach(r=>{
+          if(r[underlyingNameIdx] !== undefined && r[underlyingNameIdx] !== null){
+            let v = String(r[underlyingNameIdx]);
+            v = v.split('COHR').join('COHERENT CORP');
+		v = v.split(' Sandisk Corporation').join('Sandisk Corporation');
+            r[underlyingNameIdx] = v;
+          }
+        });
+      }
+
+      const statusColIdx = colIndex(headers, 'Status');
+      const descColIdx = colIndex(headers, 'Description');
+
+      let liveRows = dataRows.filter(r => r.some(c => String(c||'').trim() !== ''));
+      let statusDropped = 0;
+      if(statusColIdx >= 0){
+        const before = liveRows.length;
+        liveRows = liveRows.filter(r => ALLOWED_STATUSES.includes(String(r[statusColIdx]||'').trim()));
+        statusDropped = before - liveRows.length;
+      }
+
+      const EXCLUDE_DESC_TERMS = ['cln','sell call option','accu'];
+      let descDropped = 0;
+      if(descColIdx >= 0){
+        const before = liveRows.length;
+        liveRows = liveRows.filter(r=>{
+          const desc = String(r[descColIdx]||'').toLowerCase();
+          return !EXCLUDE_DESC_TERMS.some(term => desc.includes(term));
+        });
+        descDropped = before - liveRows.length;
+      }
+
+      const COLUMNS_TO_REMOVE = ['select','status','master id','issuer code','face value','days to ncd | nfd','days to maturity','period no','port. fund code','description','underlying code','stock code','settlement date','accrued coupon','current val. date', 'performance %', '% to strike'];
+      const lowerHeaders = headers.map(h=>h.toLowerCase());
+      let removeIdx = new Set();
+      COLUMNS_TO_REMOVE.forEach(name=>{
+        lowerHeaders.forEach((h, idx) => { if(h === name) removeIdx.add(idx); });
+      });
+      const rangeStart = lowerHeaders.indexOf('ki status');
+      const rangeEnd = lowerHeaders.indexOf('residual cash (sc)');
+      if(rangeStart>=0 && rangeEnd>=0){
+        for(let i=Math.min(rangeStart,rangeEnd); i<=Math.max(rangeStart,rangeEnd); i++) removeIdx.add(i);
+      }
+
+      const issuerCodeIdx = colIndex(headers, 'Issuer Code');
+      const masterIdIdx = colIndex(headers, 'Master ID');
+
+      liveRows.forEach(r => {
+        let issuerCode = issuerCodeIdx >= 0 ? String(r[issuerCodeIdx] || '').trim() : 'UNKNOWN';
+        
+        const upperIssuer = issuerCode.toUpperCase();
+        if (upperIssuer === 'BNP PARIBAS' || upperIssuer === 'BNPP' || upperIssuer === 'BNP') {
+          issuerCode = 'BNP';
+        } else if (upperIssuer === 'CITIBANK NA LONDON' || upperIssuer === 'CITIBANK' || upperIssuer === 'CITI') {
+          issuerCode = 'CITI';
+        } else if (upperIssuer === 'HLBANK') {
+          issuerCode = 'HLB';
+        } else if (upperIssuer === 'VONTOBEL') {
+          issuerCode = 'VON';
+        } else if (upperIssuer === 'HSBC PLC') {
+          issuerCode = 'HSBC';
+        }
+
+        let masterIdRaw = masterIdIdx >= 0 ? String(r[masterIdIdx] || '').trim() : '';
+        let numericMasterId = masterIdRaw.replace(/DEV\*/g, '');
+        let referenceId = `FCN-${issuerCode}/${numericMasterId}`;
+        r.push(referenceId);
+      });
+
+      let updatedHeaders = [...headers, 'Reference ID'];
+      let filteredHeaders = updatedHeaders.filter((h,i)=>!removeIdx.has(i));
+      let filteredRows = liveRows.map(r => r.filter((c,i)=>!removeIdx.has(i)));
+
+      let trimmedHeaders = [...filteredHeaders];
+      let trimmedRows = filteredRows;
+
+      const ccyIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'stock currency' || h.toLowerCase() === 'currency');
+      if (ccyIdx >= 0) {
+        trimmedHeaders[ccyIdx] = 'Currency';
+      }
+
+      const pDateIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'purchase date');
+      if (pDateIdx >= 0) {
+        trimmedHeaders[pDateIdx] = 'Start Date';
+      }
+      const mDateIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'maturity date');
+      if (mDateIdx >= 0) {
+        trimmedHeaders[mDateIdx] = 'End Date';
+      }
+
+      const curColIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'currency');
+      const costColIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'cost');
+
+      trimmedRows.forEach(r => {
+        let ccy = curColIdx >= 0 ? String(r[curColIdx] || '').trim() : '';
+        let costVal = costColIdx >= 0 ? parseFloat(String(r[costColIdx] || '').replace(/,/g, '')) : 0;
+        
+        let formattedCost = !isNaN(costVal) ? Math.round(costVal).toLocaleString('en-US') : '0';
+        let principalVal = ccy ? `${ccy} ${formattedCost}` : formattedCost;
+        
+        r.push(principalVal);
+      });
+      trimmedHeaders.push('Principal');
+
+      const couponRateIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'coupon rate');
+      if(couponRateIdx >= 0){
+        trimmedHeaders[couponRateIdx] = 'Coupon Rate (p.a.)';
+        trimmedRows.forEach(r => {
+          let valStr = String(r[couponRateIdx] || '').trim();
+          if(valStr){
+            let hasPercent = valStr.includes('%');
+            let num = parseFloat(valStr.replace(/%/g, '').replace(/,/g, ''));
+            if(!isNaN(num)){
+              r[couponRateIdx] = (num * 12).toFixed(2) + (hasPercent ? '%' : '');
+            }
+          }
+        });
+      }
+
+      const targetOrder = ['Reference ID', 'Port. Fund Name', 'Advisor Name', 'Advisor Code', 'Underlying Name', 'Principal', 'Coupon Rate (p.a.)', 'Start Date', 'End Date'];
+      let newTrimmedHeaders = [];
+      let newTrimmedRows = trimmedRows.map(() => []);
+
+      targetOrder.forEach(targetName => {
+        const idx = trimmedHeaders.findIndex(h => h.toLowerCase() === targetName.toLowerCase());
+        if (idx >= 0) {
+          newTrimmedHeaders.push(trimmedHeaders[idx]);
+          trimmedRows.forEach((r, rIdx) => {
+            newTrimmedRows[rIdx].push(r[idx]);
+          });
+        }
+      });
+
+      trimmedHeaders.forEach((h, idx) => {
+        if (!targetOrder.some(t => t.toLowerCase() === h.toLowerCase())) {
+          newTrimmedHeaders.push(trimmedHeaders[idx]);
+          trimmedRows.forEach((r, rIdx) => {
+            newTrimmedRows[rIdx].push(r[idx]);
+          });
+        }
+      });
+
+      trimmedHeaders = newTrimmedHeaders;
+      trimmedRows = newTrimmedRows;
+
+      const undIdx = trimmedHeaders.findIndex(h => h.toLowerCase() === 'underlying name');
+      if(undIdx >= 0) {
+        trimmedHeaders[undIdx] = 'Underlying';
+      }
+
+      const payload = {
+        fileName: file.name,
+        sheetName: sheetName,
+        headers: updatedHeaders,
+        dataRows: liveRows,
+        extra: { statusDropped, descDropped, trimmedHeaders, trimmedRows }
+      };
+      idbSet(payload).catch(err => console.warn('Could not save upload for next visit', err));
+
+      renderResults(file, sheetName, updatedHeaders, liveRows, {
+        statusDropped, descDropped, trimmedHeaders, trimmedRows
+      });
+
+    }catch(err){
+      console.error(err);
+      showError('Something went wrong reading this spreadsheet: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function colIndex(headers, name){
+  return headers.findIndex(h => h.toLowerCase() === name.toLowerCase());
+}
+
+function renderResults(file, sheetName, headers, dataRows, extra){
+  const {statusDropped, descDropped, trimmedHeaders, trimmedRows} = extra;
+  window.__dashboardData = { headers, dataRows, sheetName, trimmedHeaders, trimmedRows };
+
+  statusRow.style.display = 'none';
+  uploadZone.style.display = 'none';
+  resultZone.style.display = 'block';
+
+  document.getElementById('fileNameOut').textContent = file.name;
+  const notes = [];
+  if(statusDropped) notes.push(`${statusDropped.toLocaleString()} dropped (status not live)`);
+  if(descDropped) notes.push(`${descDropped.toLocaleString()} dropped (CLN / sell call option / Accu)`);
+  const droppedNote = notes.length ? ` \u00b7 ${notes.join(', ')}` : '';
+  document.getElementById('fileMetaOut').textContent =
+    `Sheet "${sheetName}" \u00b7 ${dataRows.length.toLocaleString()} live rows \u00b7 ${trimmedHeaders.length} columns kept${droppedNote}`;
+
+  const advIdx = colIndex(headers, 'Advisor Name');
+  const statusIdx = colIndex(headers, 'Status');
+  const masterIdx = colIndex(headers, 'Master ID');
+
+  const advisorCounts = {};
+  const statusCounts = {};
+  const masterIds = new Set();
+
+  dataRows.forEach(r=>{
+    if(advIdx>=0){
+      const a = String(r[advIdx]||'').trim();
+      if(a) advisorCounts[a] = (advisorCounts[a]||0)+1;
+    }
+    if(statusIdx>=0){
+      const s = String(r[statusIdx]||'').trim();
+      if(s) statusCounts[s] = (statusCounts[s]||0)+1;
+    }
+    if(masterIdx>=0){
+      const m = String(r[masterIdx]||'').trim();
+      if(m) masterIds.add(m);
+    }
+  });
+
+  const statsLineParts = [
+    `${Object.keys(advisorCounts).length || 0} advisors detected`,
+    `${(masterIds.size || dataRows.length).toLocaleString()} live products (Master ID)`,
+    `${Object.keys(statusCounts).length || 0} distinct live statuses`,
+  ];
+  document.getElementById('fileStatsLine').textContent = statsLineParts.join(' \u00b7 ');
+
+  setupAdvisorPicker(headers, dataRows);
+}
+
+function getRowsFilteredByOtherColumns(activeRows, excludeColIdx) {
+  const filtered = [];
+  activeRows.forEach(r => {
+    let matchesCols = true;
+    for (const [colIdxStr, allowedSet] of Object.entries(activeColumnFilters)) {
+      const cIdx = parseInt(colIdxStr, 10);
+      if (cIdx === excludeColIdx) continue;
+      const cellVal = String(r[cIdx] || '');
+      if (allowedSet.size > 0 && !allowedSet.has(cellVal)) {
+        matchesCols = false;
+        break;
+      }
+    }
+    if (matchesCols) {
+      filtered.push(r);
+    }
+  });
+  return filtered;
+}
+
+function evaluateStatusForPdf(originalRow, headers) {
+  const koDateIdx = colIndex(headers, 'KO Date');
+  const currPriceIdx = colIndex(headers, 'Current Price');
+  const kiPriceIdx = colIndex(headers, 'KI Price') >= 0 ? colIndex(headers, 'KI Price') : colIndex(headers, 'KI');
+  const koPriceIdx = colIndex(headers, 'KO Price') >= 0 ? colIndex(headers, 'KO Price') : colIndex(headers, 'KO');
+
+  const koDate = koDateIdx >= 0 ? String(originalRow[koDateIdx] || '').trim() : '';
+  if (koDate !== '') {
+    const parsed = parseFlexibleDate(koDate);
+    return parsed ? `KO (${formatDDMonYYYY(parsed)})` : 'KO';
+  }
+
+  const currPrice = currPriceIdx >= 0 ? parseFloat(String(originalRow[currPriceIdx] || '').replace(/,/g, '')) : NaN;
+  const kiPrice = kiPriceIdx >= 0 ? parseFloat(String(originalRow[kiPriceIdx] || '').replace(/,/g, '')) : NaN;
+  const koPrice = koPriceIdx >= 0 ? parseFloat(String(originalRow[koPriceIdx] || '').replace(/,/g, '')) : NaN;
+
+  if (!isNaN(currPrice) && !isNaN(koPrice) && currPrice >= koPrice) {
+    const parsed = koDateIdx >= 0 ? parseFlexibleDate(String(originalRow[koDateIdx] || '').trim()) : null;
+    return parsed ? `KO (${formatDDMonYYYY(parsed)})` : 'KO';
+  }
+
+  if (!isNaN(currPrice) && !isNaN(kiPrice)) {
+    if (currPrice < kiPrice) {
+      return 'KI';
+    }
+    if (currPrice * 0.85 <= kiPrice) {
+      return 'Near KI';
+    }
+  }
+
+  if (!isNaN(currPrice) && !isNaN(koPrice)) {
+    if (currPrice >= koPrice * 0.85) {
+      return 'Near KO';
+    }
+  }
+
+  return 'Active';
+}
+
+// Parses common date string formats found in the source data (e.g.
+// "21-Jun-2027", "21/06/2027", "2027-06-21") or a raw Excel date serial,
+// and returns a UTC Date, or null if it can't be parsed.
+function parseFlexibleDate(str){
+  if(!str) return null;
+  str = String(str).trim();
+  if(!str) return null;
+
+  if(/^\d+(\.\d+)?$/.test(str)){
+    const serial = parseFloat(str);
+    if(serial > 20000 && serial < 90000){
+      const epoch = Date.UTC(1899, 11, 30);
+      return new Date(epoch + serial * 86400000);
+    }
+  }
+
+  const monthMap = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  let m = str.match(/^(\d{1,2})[-\/\s]([A-Za-z]{3,})[-\/\s](\d{4})$/);
+  if(m){
+    const mon = monthMap[m[2].toLowerCase().substring(0,3)];
+    if(mon !== undefined) return new Date(Date.UTC(parseInt(m[3],10), mon, parseInt(m[1],10)));
+  }
+
+  m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m) return new Date(Date.UTC(parseInt(m[3],10), parseInt(m[2],10) - 1, parseInt(m[1],10)));
+
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if(m) return new Date(Date.UTC(parseInt(m[1],10), parseInt(m[2],10) - 1, parseInt(m[3],10)));
+
+  const d = new Date(str);
+  if(!isNaN(d.getTime())) return d;
+  return null;
+}
+
+function formatDDMonYYYY(date){
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  return `${dd}-${months[date.getUTCMonth()]}-${date.getUTCFullYear()}`;
+}
+
+function formatDDMMYYYY(date){
+  const dd = String(date.getUTCDate()).padStart(2, '0');
+  const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = date.getUTCFullYear();
+  return `${dd}/${mm}/${yyyy}`;
+}
+
+function parseDescriptionFields(desc) {
+  if (!desc) return { strike: '100%', kiKo: '', tenor: '' };
+  const upper = desc.toUpperCase();
+
+  const strikeMatch = upper.match(/STRIKE\s*(\d+(?:\.\d+)?%)/) || upper.match(/STK\s*(\d+(?:\.\d+)?%)/);
+  let strike = strikeMatch ? strikeMatch[1] : '100%';
+
+  const kiMatch = upper.match(/KI\s*(\d+(?:\.\d+)?%)/) || upper.match(/KNOCK[\s-]*IN\s*(\d+(?:\.\d+)?%)/);
+  let ki = kiMatch ? kiMatch[1] : '';
+
+  const koMatch = upper.match(/KO\s*(\d+(?:\.\d+)?%)/) || upper.match(/KNOCK[\s-]*OUT\s*(\d+(?:\.\d+)?%)/);
+  let ko = koMatch ? koMatch[1] : '';
+
+  const allPcts = upper.match(/(\d+(?:\.\d+)?%)/g) || [];
+  if (!ki && allPcts.length > 0) {
+    const nonStrikePcts = allPcts.filter(p => p !== strike);
+    if (nonStrikePcts.length > 0) ki = nonStrikePcts[0];
+    if (nonStrikePcts.length > 1) ko = nonStrikePcts[1];
+  }
+
+  let kiKo = '';
+  if (ki && ko) {
+    kiKo = `${ki} / ${ko}`;
+  } else if (ki) {
+    kiKo = ki;
+  }
+
+  const tenorMatch = upper.match(/(\d+[MY])/);
+  let tenor = tenorMatch ? tenorMatch[1] : '';
+
+  return { strike, ki, ko, kiKo, tenor };
+}
+
+function computePrintTableGroups(headers, dataRows, selectedAdvisor) {
+  const advIdxInOriginal = colIndex(headers, 'Advisor Name');
+  let activeOriginalRows = dataRows;
+
+  if (selectedAdvisor && selectedAdvisor.trim() !== "" && advIdxInOriginal >= 0) {
+    activeOriginalRows = dataRows.filter(r => String(r[advIdxInOriginal]||'').trim() === selectedAdvisor);
+  }
+
+  const refIdIdx = headers.length - 1;
+  const grouped = {};
+  const order = [];
+  activeOriginalRows.forEach(r => {
+    const refId = String(r[refIdIdx] || 'FCN-UNKNOWN/000000');
+    if (!grouped[refId]){ grouped[refId] = []; order.push(refId); }
+    grouped[refId].push(r);
+  });
+
+  const descIdx = colIndex(headers, 'Description');
+  const couponRateIdx = colIndex(headers, 'Coupon Rate');
+  const startDateIdx = colIndex(headers, 'Purchase Date') >= 0 ? colIndex(headers, 'Purchase Date') : colIndex(headers, 'Start Date');
+  const endDateIdx = colIndex(headers, 'Maturity Date') >= 0 ? colIndex(headers, 'Maturity Date') : colIndex(headers, 'End Date');
+  const undIdx = colIndex(headers, 'Underlying Name');
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+  const costIdx = colIndex(headers, 'Cost');
+  const fundNameIdx = colIndex(headers, 'Port. Fund Name');
+
+  return order.map(refId => {
+    const rowsInGroup = grouped[refId];
+    const fundNameForGroup = fundNameIdx >= 0 ? String(rowsInGroup[0][fundNameIdx] || '').trim() : '';
+    const headerText = fundNameForGroup ? `${refId} \u2014 ${fundNameForGroup}` : refId;
+
+    const rows = rowsInGroup.map((r, idx) => {
+      const numStr = `(${idx + 1})`;
+      const undName = undIdx >= 0 ? String(r[undIdx] || '') : '';
+
+      const ccy = ccyIdx >= 0 ? String(r[ccyIdx] || '').trim() : '';
+      const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx] || '').replace(/,/g, '')) : 0;
+      const principalStr = ccy ? `${ccy} ${Math.round(costVal).toLocaleString('en-US')}` : Math.round(costVal).toLocaleString('en-US');
+
+      const desc = descIdx >= 0 ? String(r[descIdx] || '') : '';
+      const parsed = parseDescriptionFields(desc);
+
+      let couponStr = '';
+      if (couponRateIdx >= 0) {
+        let valStr = String(r[couponRateIdx] || '').trim();
+        if(valStr){
+          let hasPercent = valStr.includes('%');
+          let num = parseFloat(valStr.replace(/%/g, '').replace(/,/g, ''));
+          if(!isNaN(num)){
+            couponStr = (num * 12).toFixed(2) + (hasPercent ? '%' : '');
+          }
+        }
+      }
+
+      const startDate = startDateIdx >= 0 ? String(r[startDateIdx] || '') : '';
+      const endDate = endDateIdx >= 0 ? String(r[endDateIdx] || '') : '';
+      const status = evaluateStatusForPdf(r, headers);
+
+      return [numStr, undName, principalStr, parsed.strike, parsed.kiKo, couponStr, parsed.tenor, startDate, endDate, status];
+    });
+
+    return { refId, headerText, rows };
+  });
+}
+
+function renderPrintTable(headers, dataRows, selectedAdvisor) {
+  const groups = computePrintTableGroups(headers, dataRows, selectedAdvisor);
+
+  let thead = `<thead><tr>
+    <th>ID</th>
+    <th>Underlying(s)</th>
+    <th>Principal</th>
+    <th>Strike</th>
+    <th>KI / KO</th>
+    <th>Coupon (p.a.)</th>
+    <th>Tenor</th>
+    <th>Start Date</th>
+    <th>End Date</th>
+    <th>Status</th>
+  </tr></thead>`;
+
+  let tbody = '';
+  groups.forEach(g => {
+    let groupRows = `<tr class="print-group-header"><td colspan="10">${escapeHtml(g.headerText)}</td></tr>`;
+    g.rows.forEach(row => {
+      groupRows += `<tr>
+        <td>${row[0]}</td>
+        <td>${escapeHtml(row[1])}</td>
+        <td>${escapeHtml(row[2])}</td>
+        <td>${escapeHtml(row[3])}</td>
+        <td>${escapeHtml(row[4])}</td>
+        <td>${escapeHtml(row[5])}</td>
+        <td>${escapeHtml(row[6])}</td>
+        <td>${escapeHtml(row[7])}</td>
+        <td>${escapeHtml(row[8])}</td>
+        <td>${escapeHtml(row[9])}</td>
+      </tr>`;
+    });
+    tbody += `<tbody class="print-group">${groupRows}</tbody>`;
+  });
+
+  document.getElementById('printTable').innerHTML = thead + tbody;
+}
+
+function updatePreviewTable(headers, dataRows, selectedAdvisor){
+  const { trimmedHeaders, trimmedRows } = window.__dashboardData;
+  const advIdxInOriginal = colIndex(headers, 'Advisor Name');
+  const showAll = document.getElementById('showAllToggle').checked;
+
+  let activeRows = trimmedRows;
+  let activeOriginalRows = dataRows;
+
+  if (selectedAdvisor && selectedAdvisor.trim() !== "" && advIdxInOriginal >= 0) {
+    const filtered = [];
+    const filteredOriginal = [];
+    trimmedRows.forEach((r, idx) => {
+      if (String(dataRows[idx][advIdxInOriginal]||'').trim() === selectedAdvisor) {
+        filtered.push(r);
+        filteredOriginal.push(dataRows[idx]);
+      }
+    });
+    activeRows = filtered;
+    activeOriginalRows = filteredOriginal;
+  }
+
+  let finalRows = [];
+  let finalOriginalRows = [];
+  
+  activeRows.forEach((r, idx) => {
+    let matchesCols = true;
+    for (const [colIdxStr, allowedSet] of Object.entries(activeColumnFilters)) {
+      const colIdx = parseInt(colIdxStr, 10);
+      const cellVal = String(r[colIdx] || '');
+      if (allowedSet.size > 0 && !allowedSet.has(cellVal)) {
+        matchesCols = false;
+        break;
+      }
+    }
+
+    if (matchesCols) {
+      finalRows.push(r);
+      finalOriginalRows.push(activeOriginalRows[idx]);
+    }
+  });
+
+  if (currentSortColumn !== null && finalRows.length > 0) {
+    const sortIdx = currentSortColumn;
+    finalRows.sort((a, b) => {
+      const valA = String(a[sortIdx] || '').toLowerCase();
+      const valB = String(b[sortIdx] || '').toLowerCase();
+      if (valA < valB) return currentSortDirection === 'asc' ? -1 : 1;
+      if (valA > valB) return currentSortDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }
+
+  const excludedPreviewCols = ['currency', 'cost'];
+  if (selectedAdvisor && selectedAdvisor.trim() !== "") {
+    excludedPreviewCols.push('advisor code', 'advisor name');
+  }
+
+  let displayIndices = trimmedHeaders.map((_, i) => i).filter(i => {
+    const h = trimmedHeaders[i].toLowerCase();
+    return !excludedPreviewCols.includes(h);
+  });
+
+  const previewRows = showAll ? finalRows : finalRows.slice(0, 10);
+  
+  let thead = '<thead><tr>' + displayIndices.map(i => {
+    const rawH = trimmedHeaders[i];
+    const h = (rawH.toLowerCase() === 'coupon rate (p.a.)') ? 'Coupon (p.a.)' : rawH;
+    const hasFilter = activeColumnFilters[i] && activeColumnFilters[i].size > 0;
+    const isSorted = currentSortColumn === i;
+    const sortIndicator = isSorted ? `<span class="sort-indicator">${currentSortDirection === 'asc' ? '▲' : '▼'}</span>` : '';
+
+    return `<th>
+      <div class="th-content">
+        <div class="th-label-sort" data-sort-col-index="${i}" title="Click to sort column">
+          <span>${escapeHtml(h||'')}</span>
+          ${sortIndicator}
+        </div>
+        <div class="th-actions">
+          <button type="button" class="filter-btn ${hasFilter ? 'active' : ''}" data-col-index="${i}" title="Filter column">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          </button>
+        </div>
+      </div>
+    </th>`;
+  }).join('') + '</tr></thead>';
+
+  let tbody = '<tbody>' + previewRows.map(r => '<tr>' + displayIndices.map(i => `<td>${escapeHtml(formatCell(r[i]))}</td>`).join('') + '</tr>').join('') + '</tbody>';
+
+  document.getElementById('previewTable').innerHTML = thead + tbody;
+  
+  document.querySelectorAll('.th-label-sort').forEach(el => {
+    el.addEventListener('click', () => {
+      const colIdx = parseInt(el.getAttribute('data-sort-col-index'), 10);
+      if (currentSortColumn === colIdx) {
+        currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        currentSortColumn = colIdx;
+        currentSortDirection = 'asc';
+      }
+      const data = window.__dashboardData;
+      if (data) updatePreviewTable(data.headers, data.dataRows, selectedAdvisorValue);
+    });
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const colIdx = parseInt(btn.getAttribute('data-col-index'), 10);
+      const rowsForPopup = getRowsFilteredByOtherColumns(activeRows, colIdx);
+      toggleFilterPopup(btn, colIdx, rowsForPopup);
+    });
+  });
+
+  const totalRowsCount = finalRows.length;
+  const displayedRowsCount = previewRows.length;
+
+  if (showAll || totalRowsCount <= 10) {
+    document.getElementById('colPreviewSub').textContent = `Showing ${displayedRowsCount.toLocaleString()} of ${totalRowsCount.toLocaleString()} rows`;
+  } else {
+    document.getElementById('colPreviewSub').textContent = `Showing first ${displayedRowsCount.toLocaleString()} of ${totalRowsCount.toLocaleString()} rows`;
+  }
+}
+
+function toggleFilterPopup(btnElement, colIdx, currentRows) {
+  const existing = document.getElementById('activeFilterPopup');
+  if (existing) {
+    const parentTh = existing.parentNode;
+    existing.remove();
+    if (parentTh === btnElement.closest('th')) return;
+  }
+
+  const valueSet = new Set();
+  currentRows.forEach(r => {
+    valueSet.add(String(r[colIdx] || ''));
+  });
+  const uniqueValues = Array.from(valueSet).sort();
+
+  const popup = document.createElement('div');
+  popup.id = 'activeFilterPopup';
+  popup.className = 'filter-popup show';
+
+  const currentSelection = activeColumnFilters[colIdx] || new Set();
+  const isAllSelected = currentSelection.size === 0;
+
+  popup.innerHTML = `
+    <input type="text" class="filter-search-input" placeholder="Search values..." id="popupSearchInput">
+    <div style="font-size: 11px; color: var(--text-soft); margin-bottom: 4px; display: flex; justify-content: space-between;">
+      <span>Select values</span>
+      <a href="#" id="popupClearLink" style="color: var(--navy); text-decoration: none;">Clear</a>
+    </div>
+    <div class="filter-checkbox-list" id="popupCheckboxList">
+      ${uniqueValues.map(val => {
+        const checked = isAllSelected || currentSelection.has(val) ? 'checked' : '';
+        const displayVal = val === '' ? '(Blanks)' : val;
+        return `<label class="filter-checkbox-label">
+          <input type="checkbox" value="${escapeHtml(val)}" ${checked} class="popup-val-checkbox">
+          <span title="${escapeHtml(val)}">${escapeHtml(displayVal)}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div class="filter-actions">
+      <button type="button" class="filter-action-btn" id="popupSelectAllBtn">Select All</button>
+      <button type="button" class="filter-action-btn primary" id="popupApplyBtn">Apply</button>
+    </div>
+  `;
+
+  const th = btnElement.closest('th');
+  th.appendChild(popup);
+
+  popup.addEventListener('click', (e) => e.stopPropagation());
+
+  const searchInput = popup.querySelector('#popupSearchInput');
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.toLowerCase();
+    popup.querySelectorAll('.filter-checkbox-label').forEach(label => {
+      const text = label.textContent.toLowerCase();
+      label.style.display = text.includes(query) ? 'flex' : 'none';
+    });
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      popup.querySelector('#popupApplyBtn').click();
+    }
+  });
+
+  popup.querySelector('#popupClearLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    popup.querySelectorAll('.popup-val-checkbox').forEach(cb => cb.checked = false);
+  });
+
+  popup.querySelector('#popupSelectAllBtn').addEventListener('click', () => {
+    popup.querySelectorAll('.popup-val-checkbox').forEach(cb => {
+      if(cb.closest('label').style.display !== 'none') cb.checked = true;
+    });
+  });
+
+  popup.querySelector('#popupApplyBtn').addEventListener('click', () => {
+    const checkboxes = popup.querySelectorAll('.popup-val-checkbox');
+    const newSelected = new Set();
+    let allChecked = true;
+
+    checkboxes.forEach(cb => {
+      if (cb.checked) newSelected.add(cb.value);
+      else allChecked = false;
+    });
+
+    if (allChecked || newSelected.size === 0) {
+      delete activeColumnFilters[colIdx];
+    } else {
+      activeColumnFilters[colIdx] = newSelected;
+    }
+
+    popup.remove();
+    const data = window.__dashboardData;
+    if (data) updatePreviewTable(data.headers, data.dataRows, selectedAdvisorValue);
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const existing = document.getElementById('activeFilterPopup');
+  if (existing && !existing.contains(e.target)) existing.remove();
+
+  const customDropdown = document.getElementById('customAdvisorDropdown');
+  if (customDropdown && !customDropdown.contains(e.target)) {
+    customDropdown.classList.remove('open');
+  }
+});
+
+document.getElementById('showAllToggle').addEventListener('change', () => {
+  const data = window.__dashboardData;
+  if (data) updatePreviewTable(data.headers, data.dataRows, selectedAdvisorValue);
+});
+
+document.getElementById('clearSortBtn').addEventListener('click', () => {
+  currentSortColumn = null;
+  currentSortDirection = 'asc';
+  const data = window.__dashboardData;
+  if (data) updatePreviewTable(data.headers, data.dataRows, selectedAdvisorValue);
+});
+
+document.getElementById('clearFiltersBtn').addEventListener('click', () => {
+  activeColumnFilters = {};
+  const data = window.__dashboardData;
+  if (data) updatePreviewTable(data.headers, data.dataRows, selectedAdvisorValue);
+});
+
+function formatCell(v){
+  if(v === undefined || v === null) return '';
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  return String(v);
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Rounds each share to 2 decimals so the displayed percentages add up to exactly
+// 100.00 (largest-remainder method: round everything down to the hundredth, then
+// hand the leftover hundredths to the slices that lost the most in rounding).
+function roundedPcts(values, total){
+  if(!(total > 0)) return values.map(() => 0);
+  const scaled = values.map(v => (v / total) * 10000);
+  const floors = scaled.map(x => Math.floor(x + 1e-9));
+  let leftover = 10000 - floors.reduce((a, b) => a + b, 0);
+  const order = scaled.map((x, i) => ({ i, rem: x - floors[i] })).sort((a, b) => b.rem - a.rem);
+  for(let k = 0; k < order.length && leftover > 0; k++, leftover--) floors[order[k].i] += 1;
+  return floors.map(f => f / 100);
+}
+// Pie colours taken from the Excel theme palette: slate, red, orange, wine, sand, pink, brown and shades.
+const PIE_COLORS = ['#3B4C54','#C33B32','#7D97A4','#E06B00','#760E3A','#A89983','#E6347F','#574D3D','#FF912C','#922C25'];
+const PIE_OTHERS_COLOR = '#7F7F7F';
+function pieColorFor(name, i){
+  return name === 'Others' ? PIE_OTHERS_COLOR : PIE_COLORS[i % PIE_COLORS.length];
+}
+
+// All Advisors view shows the top 10 slices; an individual advisor shows the top 5.
+function getPieTopN(advisorName){
+  return (advisorName && String(advisorName).trim() !== '') ? 5 : 10;
+}
+const charts = {};
+let ratesPromise = null;
+const REQUIRED_CURRENCIES = ['AUD', 'CNH', 'GBP', 'HKD', 'JPY', 'MYR', 'SGD', 'USD'];
+const CCY_ALIAS = { 'CNH': 'CNY' };
+
+const STATIC_RATES = {
+  date: '2026-09-01',
+  rates: { AUD:1.3951, GBP:0.7382, JPY:159.79, CNY:6.72, CNH:6.72, HKD:7.838, SGD:1.2726, MYR:4.03 }
+};
+
+let customRatesCache = null;
+let customRatesLabel = '';
+let customRatesTimestamp = '';
+let isEditingRates = false;
+
+function loadPersistedRates(){
+  const saved = localStorage.getItem('custom_fx_rates');
+  if(saved){
+    try{
+      const parsed = JSON.parse(saved);
+      customRatesCache = parsed.rates;
+      customRatesLabel = parsed.label || 'Saved custom rates';
+      customRatesTimestamp = parsed.timestamp || '';
+    }catch(e){ console.error(e); }
+  }
+}
+loadPersistedRates();
+
+function savePersistedRates(rates, label){
+  customRatesCache = rates;
+  customRatesLabel = label;
+  customRatesTimestamp = new Date().toLocaleString();
+  localStorage.setItem('custom_fx_rates', JSON.stringify({ rates, label, timestamp: customRatesTimestamp }));
+}
+
+function fetchCurrencyConverterRates(){
+  if(customRatesCache){
+    return Promise.resolve({ rates: customRatesCache, timeText: customRatesLabel, timestamp: customRatesTimestamp });
+  }
+  if(!ratesPromise){
+    ratesPromise = fetch(`https://open.er-api.com/v6/latest/USD?_=${Date.now()}`)
+      .then(r => { if(!r.ok) throw new Error('rate fetch failed: ' + r.status); return r.json(); })
+      .then(data => {
+        if(data.result !== 'success' || !data.rates) throw new Error('rate fetch returned no data');
+        if(data.rates.CNY && !data.rates.CNH) {
+          data.rates.CNH = data.rates.CNY;
+        }
+        const ts = new Date().toLocaleString();
+        return {
+          rates: data.rates,
+          timeText: `Live rates as of ${data.time_last_update_utc} (base USD)`,
+          timestamp: ts
+        };
+      })
+      .catch(err => {
+        console.error('Live FX source unavailable, using static researched rates:', err);
+        const ts = new Date().toLocaleString();
+        return {
+          rates: STATIC_RATES.rates,
+          timeText: `Fixed reference rates as of ${STATIC_RATES.date} (live source unavailable)`,
+          timestamp: ts
+        };
+      });
+  }
+  return ratesPromise;
+}
+
+function formatNotional(usd){
+  if(!isFinite(usd)) return '\u2014';
+  return Math.round(usd).toLocaleString('en-US');
+}
+
+function formatCompactUsd(value){
+  if(!isFinite(value)) return '\u2014';
+  const sign = value < 0 ? '-' : '';
+  const abs = Math.abs(value);
+  if(abs >= 1e9) return `${sign}$${(abs/1e9).toFixed(1)}B`;
+  if(abs >= 1e6) return `${sign}$${(abs/1e6).toFixed(1)}M`;
+  if(abs >= 1e3) return `${sign}$${(abs/1e3).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(0)}`;
+}
+
+const printDonutLabelsPlugin = {
+  id: 'printDonutLabels',
+  afterDraw(chart, args, opts) {
+    if(!opts || !opts.enabled) return;
+    const { ctx, chartArea } = chart;
+    const meta = chart.getDatasetMeta(0);
+    if(!meta || !meta.data || !meta.data.length) return;
+
+    const centerX = (chartArea.left + chartArea.right) / 2;
+    const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+    const maxLineChars = 14;
+
+    const items = meta.data.map((arc, i) => {
+      const props = arc.getProps(['startAngle','endAngle','innerRadius','outerRadius'], true);
+      const midAngle = (props.startAngle + props.endAngle) / 2;
+      const label = opts.labels[i];
+      
+      const words = label.split(' ');
+      let lines = [];
+      let currentLine = '';
+      words.forEach(word => {
+        if ((currentLine + ' ' + word).trim().length <= maxLineChars) {
+          currentLine = (currentLine + ' ' + word).trim();
+        } else {
+          if (currentLine) lines.push(currentLine);
+          currentLine = word;
+        }
+      });
+      if (currentLine) lines.push(currentLine);
+      
+      const totalRows = 1 + lines.length;
+      const totalBlockHeight = totalRows * 7.5;
+      const requiredHeight = Math.max(18, totalBlockHeight + 6);
+
+      return {
+        midAngle,
+        outerRadius: props.outerRadius,
+        innerRadius: props.innerRadius,
+        value: opts.values[i],
+        pct: opts.pct[i],
+        label,
+        lines,
+        totalRows,
+        totalBlockHeight,
+        requiredHeight,
+        color: opts.colors[i]
+      };
+    });
+
+    ctx.save();
+
+    ctx.textBaseline = 'middle';
+    items.forEach(it => {
+      const midR = (it.innerRadius + it.outerRadius) / 2;
+      const x = centerX + Math.cos(it.midAngle) * midR;
+      const y = centerY + Math.sin(it.midAngle) * midR;
+      ctx.textAlign = 'center';
+      ctx.font = '700 7.5px Segoe UI, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(`${it.pct.toFixed(2)}%`, x, y);
+    });
+
+    const leftItems = [];
+    const rightItems = [];
+    items.forEach(it => {
+      const cos = Math.cos(it.midAngle);
+      const sin = Math.sin(it.midAngle);
+      const isRight = cos >= 0;
+      const elbowR = it.outerRadius + 10;
+      const entry = {
+        ...it, isRight,
+        x1: centerX + cos * it.outerRadius,
+        y1: centerY + sin * it.outerRadius,
+        y2: centerY + sin * elbowR
+      };
+      (isRight ? rightItems : leftItems).push(entry);
+    });
+
+    function layoutSide(sideItems){
+      sideItems.sort((a,b)=> a.y2 - b.y2);
+      for(let i=1;i<sideItems.length;i++){
+        const prev = sideItems[i-1];
+        const curr = sideItems[i];
+        const minSpacing = (prev.requiredHeight / 2) + (curr.requiredHeight / 2) + 4;
+        if(curr.y2 - prev.y2 < minSpacing){
+          curr.y2 = prev.y2 + minSpacing;
+        }
+      }
+      const maxY = chartArea.bottom - 5;
+      if(sideItems.length){
+        const overflow = sideItems[sideItems.length-1].y2 - maxY;
+        if(overflow > 0){
+          sideItems.forEach(it => it.y2 -= overflow);
+        }
+      }
+      const minY = chartArea.top + 5;
+      if(sideItems.length && sideItems[0].y2 < minY){
+        const shiftUp = minY - sideItems[0].y2;
+        sideItems.forEach(it => it.y2 += shiftUp);
+      }
+
+      const lineLength = 32;
+      const ringClearance = 8;
+      sideItems.forEach(it => {
+        const dy = it.y2 - centerY;
+        const ringHalfWidthAtY = Math.sqrt(Math.max(0, it.outerRadius*it.outerRadius - dy*dy));
+        const x2Offset = Math.max(ringHalfWidthAtY + ringClearance, 16);
+        it.x2 = centerX + (it.isRight ? 1 : -1) * x2Offset;
+        it.x3 = it.isRight ? it.x2 + lineLength : it.x2 - lineLength;
+      });
+    }
+    layoutSide(leftItems);
+    layoutSide(rightItems);
+
+    function drawSide(sideItems, isRight){
+      sideItems.forEach(it => {
+        const x3 = it.x3;
+
+        ctx.strokeStyle = it.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(it.x1, it.y1);
+        ctx.lineTo(it.x2, it.y2);
+        ctx.lineTo(x3, it.y2);
+        ctx.stroke();
+
+        ctx.textAlign = isRight ? 'left' : 'right';
+        const tx = isRight ? x3 + 2 : x3 - 2;
+        ctx.textBaseline = 'middle';
+
+        const halfH = it.totalBlockHeight / 2;
+
+        ctx.font = '700 7.5px Segoe UI, sans-serif';
+        ctx.fillStyle = '#1A2B3C';
+        const amountY = it.y2 - halfH + 3;
+        ctx.fillText(formatCompactUsd(it.value), tx, amountY);
+
+        ctx.font = '400 6.5px Segoe UI, sans-serif';
+        ctx.fillStyle = '#5A6472';
+        it.lines.forEach((lineText, lineIdx) => {
+          const lineY = it.y2 - halfH + 3 + ((lineIdx + 1) * 7.5);
+          ctx.fillText(lineText, tx, lineY);
+        });
+      });
+    }
+    drawSide(leftItems, false);
+    drawSide(rightItems, true);
+
+    ctx.restore();
+  }
+};
+
+const sliceCenterLabelsPlugin = {
+  id: 'sliceCenterLabels',
+  afterDraw(chart, args, opts) {
+    if(!opts || !opts.enabled) return;
+    const { ctx, chartArea } = chart;
+    const meta = chart.getDatasetMeta(0);
+    if(!meta || !meta.data || !meta.data.length) return;
+
+    const centerX = (chartArea.left + chartArea.right) / 2;
+    const centerY = (chartArea.top + chartArea.bottom) / 2;
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    meta.data.forEach((arc, i) => {
+      const pct = opts.pct[i];
+      if(pct == null || pct < 4) return;
+      const props = arc.getProps(['startAngle','endAngle','innerRadius','outerRadius'], true);
+      const midAngle = (props.startAngle + props.endAngle) / 2;
+      const midR = (props.innerRadius + props.outerRadius) / 2;
+      const x = centerX + Math.cos(midAngle) * midR;
+      const y = centerY + Math.sin(midAngle) * midR;
+      ctx.font = '700 11px Segoe UI, sans-serif';
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText(`${pct.toFixed(2)}%`, x, y);
+    });
+    ctx.restore();
+  }
+};
+
+function wrapText(str, maxCharsPerLine = 22) {
+  if (!str) return [''];
+  const words = str.split(' ');
+  const lines = [];
+  let currentLine = '';
+
+  words.forEach(word => {
+    if ((currentLine + ' ' + word).trim().length <= maxCharsPerLine) {
+      currentLine = currentLine ? currentLine + ' ' + word : word;
+    } else {
+      if (currentLine) lines.push(currentLine);
+      currentLine = word;
+    }
+  });
+  if (currentLine) lines.push(currentLine);
+  return lines;
+}
+
+// Renders the "Top 10 advisors by notional" list (2 columns x 5 rows) shown
+// on-screen in place of the Client holdings pie when "All Advisors" is
+// selected. Also used by the browser print view.
+function renderAdvisorRankingList(containerId, entries){
+  const container = document.getElementById(containerId);
+  if(!container) return;
+
+  if(!entries.length){
+    container.innerHTML = `<div style="color:var(--text-faint); font-style:italic; font-size:13px;">No advisor data available.</div>`;
+    return;
+  }
+
+  const halves = [entries.slice(0, 5), entries.slice(5, 10)];
+  container.innerHTML = halves.map(half => `<div class="advisor-rank-col">${half.map((e, i) => `<div class="advisor-rank-row">
+      <span class="advisor-rank-num">${halves[0] === half ? i + 1 : i + 6}</span>
+      <span class="advisor-rank-name" title="${escapeHtml(toTitleCase(e.name))}">${escapeHtml(toTitleCase(e.name))}</span>
+      <span class="advisor-rank-value">USD ${Math.round(e.value).toLocaleString('en-US')}</span>
+    </div>`).join('')}</div>`).join('');
+}
+
+function renderPieChart(canvasId, legendId, dataMap, emptyText, renderMode = 'screen', topN = 5){
+  const canvas = document.getElementById(canvasId);
+  const legend = document.getElementById(legendId);
+  if(!canvas || !legend) return;
+
+  const entries = Object.entries(dataMap).sort((a,b) => b[1] - a[1]);
+  const total = entries.reduce((acc, curr) => acc + curr[1], 0);
+
+  if(entries.length === 0 || total === 0){
+    legend.innerHTML = `<div style="font-size:12.5px; color:var(--text-faint); padding:12px 0;">${emptyText}</div>`;
+    if(charts[canvasId]){ charts[canvasId].destroy(); delete charts[canvasId]; }
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  let topEntries = entries;
+  let otherSum = 0;
+  if(entries.length > topN + 1){
+    topEntries = entries.slice(0, topN);
+    otherSum = entries.slice(topN).reduce((acc, curr) => acc + curr[1], 0);
+    topEntries.push(['Others', otherSum]);
+  }
+
+  const labels = topEntries.map(e => e[0]);
+  const values = topEntries.map(e => e[1]);
+  const pcts = roundedPcts(values, total);
+
+  legend.innerHTML = topEntries.map((e, i) => {
+    const color = pieColorFor(e[0], i);
+    const pct = pcts[i].toFixed(2);
+    const amountStr = `USD ${Math.round(e[1]).toLocaleString('en-US')}`;
+    return `
+      <div class="legend-row">
+        <div style="display:flex; align-items:center; min-width:0; flex:1;">
+          <div class="legend-swatch" style="background:${color};"></div>
+          <div class="legend-name" title="${escapeHtml(e[0])}">${escapeHtml(e[0])}</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+          <span style="font-size:11.5px; color:var(--text-soft);">${amountStr}</span>
+          <span class="legend-pct">${pct}%</span>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if(charts[canvasId]){ charts[canvasId].destroy(); }
+
+  const isPdf = (renderMode === 'print');
+
+  if(isPdf){
+    const colors = topEntries.map((entry, i) => pieColorFor(entry[0], i));
+    const pct = pcts;
+
+    const PDF_CHART_W = 440;
+    const PDF_CHART_H = 260;
+    canvas.style.width = PDF_CHART_W + 'px';
+    canvas.style.height = PDF_CHART_H + 'px';
+    canvas.width = PDF_CHART_W;
+    canvas.height = PDF_CHART_H;
+
+    charts[canvasId] = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderColor: '#FFFFFF', borderWidth: 1 }] },
+      options: {
+        responsive: false,
+        maintainAspectRatio: false,
+        animation: false,
+        devicePixelRatio: 2,
+        cutout: '58%',
+        layout: { padding: { top: 20, bottom: 40, left: 100, right: 100 } },
+        plugins: {
+          legend: { display: false },
+          tooltip: { enabled: false },
+          printDonutLabels: {
+            enabled: true,
+            values, labels, colors, pct,
+            labelLineHeight: 14
+          }
+        }
+      },
+      plugins: [printDonutLabelsPlugin]
+    });
+    charts[canvasId].resize(PDF_CHART_W, PDF_CHART_H);
+    charts[canvasId].draw();
+
+    legend.innerHTML = labels.map((name,i)=>{
+      return `<div class="legend-row">
+        <span style="display:flex; align-items:center; gap:4px; min-width:0;">
+          <span class="legend-swatch" style="background:${colors[i]}"></span>
+          <span class="legend-name" title="${escapeHtml(name)}">${escapeHtml(name)}</span>
+        </span>
+      </div>`;
+    }).join('');
+    return;
+  }
+
+  const chartConfig = {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: topEntries.map((e, i) => pieColorFor(e[0], i)),
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1,
+      cutout: '52%',
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          enabled: true,
+          position: 'average',
+          yAlign: 'bottom',
+          callbacks: {
+            title: function(context){
+              const label = context[0].label || '';
+              return wrapText(label, 22);
+            },
+            label: function(context){
+              const val = context.raw;
+              const pct = pcts[context.dataIndex].toFixed(2);
+              return ` USD ${Math.round(val).toLocaleString('en-US')} (${pct}%)`;
+            }
+          }
+        },
+        printDonutLabels: {
+          enabled: isPdf,
+          values: values,
+          pct: pcts,
+          labels: labels
+        },
+        sliceCenterLabels: {
+          enabled: true,
+          pct: pcts
+        }
+      }
+    },
+    plugins: [printDonutLabelsPlugin, sliceCenterLabelsPlugin]
+  };
+
+  charts[canvasId] = new Chart(canvas.getContext('2d'), chartConfig);
+}
+
+function setupAdvisorPicker(headers, dataRows){
+  const advIdx = colIndex(headers, 'Advisor Name');
+  const codeIdx = colIndex(headers, 'Advisor Code');
+  if(advIdx < 0){
+    document.getElementById('advisorPanel').style.display = 'none';
+    return;
+  }
+
+  const map = {};
+  dataRows.forEach(r => {
+    const name = String(r[advIdx]||'').trim();
+    if(!name) return;
+    const code = codeIdx >= 0 ? String(r[codeIdx]||'').trim() : '';
+    if(!map[name]) map[name] = new Set();
+    if(code) map[name].add(code);
+  });
+  window.__advisorCodeMap = map;
+
+  const container = document.getElementById('advisorControlsContainer');
+  container.innerHTML = `
+    <div class="custom-dropdown-container" id="customAdvisorDropdown">
+      <div class="custom-dropdown-selected" id="customAdvisorSelected">
+        <span id="customAdvisorSelectedText">All Advisors (${Object.keys(map).length})</span>
+        <div class="custom-dropdown-arrow"></div>
+      </div>
+      <div class="custom-dropdown-menu">
+        <input type="text" class="custom-dropdown-search" id="customAdvisorSearch" placeholder="Search advisor...">
+        <div class="custom-dropdown-list" id="customAdvisorList">
+          <div class="custom-dropdown-item all-advisors-option selected" data-value="">All Advisors (${Object.keys(map).length})</div>
+          ${Object.keys(map).sort().map(name => {
+            const codes = Array.from(map[name]).join(', ');
+            const label = codes ? `${toTitleCase(name)} (${codes})` : toTitleCase(name);
+            return `<div class="custom-dropdown-item" data-value="${escapeHtml(name)}">${escapeHtml(label)}</div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  const dropdownContainer = document.getElementById('customAdvisorDropdown');
+  const selectedBox = document.getElementById('customAdvisorSelected');
+  const selectedText = document.getElementById('customAdvisorSelectedText');
+  const searchInput = document.getElementById('customAdvisorSearch');
+  const listContainer = document.getElementById('customAdvisorList');
+
+  selectedBox.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdownContainer.classList.toggle('open');
+    if(dropdownContainer.classList.contains('open')){
+      searchInput.value = '';
+      filterAdvisorList('');
+      searchInput.focus();
+    }
+  });
+
+  let highlightedIndex = -1;
+
+  function getVisibleItems(){
+    return Array.from(listContainer.querySelectorAll('.custom-dropdown-item'))
+      .filter(it => it.style.display !== 'none');
+  }
+
+  function setHighlight(idx){
+    const visibleItems = getVisibleItems();
+    visibleItems.forEach(it => it.classList.remove('highlighted'));
+    if(idx < 0 || idx >= visibleItems.length){
+      highlightedIndex = -1;
+      return;
+    }
+    highlightedIndex = idx;
+    const item = visibleItems[idx];
+    item.classList.add('highlighted');
+    item.scrollIntoView({ block: 'nearest' });
+  }
+
+  function filterAdvisorList(query){
+    const items = listContainer.querySelectorAll('.custom-dropdown-item');
+    let visibleCount = 0;
+    items.forEach(item => {
+      // The "All Advisors" row is always pinned to the top, regardless of the search text.
+      if(item.getAttribute('data-value') === ''){
+        item.style.display = 'block';
+        visibleCount++;
+        return;
+      }
+      const text = item.textContent.toLowerCase();
+      if(text.includes(query.toLowerCase())){
+        item.style.display = 'block';
+        visibleCount++;
+      } else {
+        item.style.display = 'none';
+      }
+    });
+    let emptyDiv = listContainer.querySelector('.custom-dropdown-empty');
+    if(visibleCount === 0){
+      if(!emptyDiv){
+        emptyDiv = document.createElement('div');
+        emptyDiv.className = 'custom-dropdown-empty';
+        emptyDiv.textContent = 'No advisors found';
+        listContainer.appendChild(emptyDiv);
+      }
+    } else if(emptyDiv){
+      emptyDiv.remove();
+    }
+
+    // Only pre-highlight when there's a single unambiguous match (or no
+    // search text at all, where "All Advisors" is the obvious default).
+    // With multiple matches, nothing is highlighted until the user presses
+    // an arrow key, so Enter can't blindly pick the first result.
+    const visibleItems = getVisibleItems();
+    if(!query.trim()){
+      setHighlight(visibleItems.length ? 0 : -1);
+    } else {
+      const matches = visibleItems.filter(it => it.getAttribute('data-value') !== '');
+      setHighlight(matches.length === 1 ? visibleItems.indexOf(matches[0]) : -1);
+    }
+  }
+
+  searchInput.addEventListener('input', (e) => {
+    filterAdvisorList(e.target.value);
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if(e.key === 'ArrowDown'){
+      e.preventDefault();
+      const visibleItems = getVisibleItems();
+      if(!visibleItems.length) return;
+      const next = highlightedIndex < 0 ? 0 : Math.min(highlightedIndex + 1, visibleItems.length - 1);
+      setHighlight(next);
+    } else if(e.key === 'ArrowUp'){
+      e.preventDefault();
+      const visibleItems = getVisibleItems();
+      if(!visibleItems.length) return;
+      const prev = highlightedIndex < 0 ? 0 : Math.max(highlightedIndex - 1, 0);
+      setHighlight(prev);
+    } else if(e.key === 'Enter'){
+      e.preventDefault();
+      const visibleItems = getVisibleItems();
+      // Only select when something is actually highlighted — either the
+      // single unambiguous match, or whatever the user arrowed to. With
+      // several matches and no arrow-key navigation yet, Enter does nothing.
+      if(highlightedIndex >= 0 && highlightedIndex < visibleItems.length){
+        visibleItems[highlightedIndex].click();
+      }
+    }
+  });
+
+  listContainer.querySelectorAll('.custom-dropdown-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      listContainer.querySelectorAll('.custom-dropdown-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+      
+      const val = item.getAttribute('data-value');
+      selectedText.textContent = item.textContent;
+      dropdownContainer.classList.remove('open');
+      
+      selectedAdvisorValue = val;
+      updateDashboardForAdvisor(val, headers, dataRows);
+    });
+  });
+
+  updateDashboardForAdvisor("", headers, dataRows);
+}
+
+function updateDashboardForAdvisor(advisorName, headers, dataRows){
+  return fetchCurrencyConverterRates().then(({ rates, timeText, timestamp }) => {
+    renderFxPanel(rates, timeText, timestamp);
+    
+    const pieSubEl = document.getElementById('pieSub');
+    if(pieSubEl){
+      if(!advisorName || advisorName.trim() === ""){
+        pieSubEl.textContent = "Share of cost by underlying stock across all advisors, on behalf of clients.";
+      } else {
+        pieSubEl.textContent = "Share of cost by underlying stock for the selected advisor, on behalf of clients.";
+      }
+    }
+
+    const isAllAdvisors = !advisorName || advisorName.trim() === "";
+
+    const clientPanelTitleEl = document.getElementById('clientPanelTitle');
+    const clientPieSubEl = document.getElementById('clientPieSub');
+    const clientPieContentEl = document.getElementById('clientPieContent');
+    const advisorRankingContentEl = document.getElementById('advisorRankingContent');
+    const clientCopyCsvBtn = document.getElementById('clientCopyCsvBtn');
+
+    if(isAllAdvisors){
+      if(clientPanelTitleEl) clientPanelTitleEl.textContent = 'Top 10 advisors by notional';
+      if(clientPieSubEl) clientPieSubEl.textContent = 'Advisors managing the largest total notional, converted to USD.';
+      if(clientPieContentEl) clientPieContentEl.style.display = 'none';
+      if(advisorRankingContentEl) advisorRankingContentEl.style.display = 'grid';
+      if(clientCopyCsvBtn) clientCopyCsvBtn.setAttribute('data-col', 'Advisor');
+    } else {
+      if(clientPanelTitleEl) clientPanelTitleEl.textContent = 'Client holdings';
+      if(clientPieSubEl) clientPieSubEl.textContent = 'Share of total portfolio value by client for the selected advisor.';
+      if(clientPieContentEl) clientPieContentEl.style.display = 'grid';
+      if(advisorRankingContentEl) advisorRankingContentEl.style.display = 'none';
+      if(clientCopyCsvBtn) clientCopyCsvBtn.setAttribute('data-col', 'Client');
+    }
+
+    const advIdx = colIndex(headers, 'Advisor Name');
+    const filteredRows = (advisorName && advisorName.trim() !== "" && advIdx >= 0)
+      ? dataRows.filter(r => String(r[advIdx]||'').trim() === advisorName)
+      : dataRows;
+
+    updateAdvisorStatsAndPies(headers, filteredRows, rates, advisorName);
+    updatePreviewTable(headers, dataRows, advisorName);
+    updatePrintStats(advisorName);
+  });
+}
+
+function updatePrintStats(advisorName) {
+  const data = window.__dashboardData;
+  if (!data) return;
+  const headers = data.headers;
+  const dataRows = data.dataRows;
+  
+  const advIdx = colIndex(headers, 'Advisor Name');
+  const filteredRows = (advisorName && advisorName.trim() !== "" && advIdx >= 0)
+    ? dataRows.filter(r => String(r[advIdx]||'').trim() === advisorName)
+    : dataRows;
+
+  return fetchCurrencyConverterRates().then(({ rates }) => {
+    const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+    const costIdx = colIndex(headers, 'Cost');
+    const masterIdx = colIndex(headers, 'Master ID');
+
+    let totalUsd = 0;
+    const masterIds = new Set();
+
+    filteredRows.forEach(r => {
+      const ccy = ccyIdx >= 0 ? String(r[ccyIdx] || '').trim().toUpperCase() : 'USD';
+      const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx] || '').replace(/,/g, '')) : 0;
+      if(!isNaN(costVal)){
+        const rate = (ccy === 'USD') ? 1 : (rates[ccy] || rates[CCY_ALIAS[ccy]] || 1);
+        totalUsd += costVal / rate;
+      }
+      if(masterIdx >= 0){
+        const m = String(r[masterIdx] || '').trim();
+        if(m) masterIds.add(m);
+      }
+    });
+
+    document.getElementById('printAdvisorSub').textContent = advisorName ? `Advisor: ${toTitleCase(advisorName)}` : 'Advisor: All Holdings';
+    document.getElementById('printStatNotional').textContent = `USD ${Math.round(totalUsd).toLocaleString('en-US')}`;
+    document.getElementById('printStatProducts').textContent = (masterIds.size || filteredRows.length).toLocaleString();
+  });
+}
+
+function updateAdvisorStatsAndPies(headers, filteredRows, rates, advisorName){
+  const isAllAdvisors = !advisorName || advisorName.trim() === "";
+  const undIdx = colIndex(headers, 'Underlying Name');
+  const fundNameIdx = colIndex(headers, 'Port. Fund Name');
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+  const costIdx = colIndex(headers, 'Cost');
+
+  const underlyingCosts = {};
+  const clientValues = {};
+
+  filteredRows.forEach(r => {
+    const ccy = ccyIdx >= 0 ? String(r[ccyIdx]||'').trim().toUpperCase() : 'USD';
+    const costVal = costIdx >= 0 ? parseFloat(String(r[costIdx]||'').replace(/,/g, '')) : 0;
+    const usdVal = !isNaN(costVal) ? costVal / (ccy === 'USD' ? 1 : (rates[ccy] || rates[CCY_ALIAS[ccy]] || 1)) : 0;
+
+    if(undIdx >= 0){
+      const und = String(r[undIdx]||'').trim() || 'Unspecified';
+      underlyingCosts[und] = (underlyingCosts[und] || 0) + usdVal;
+    }
+
+    // When a specific advisor is selected, this is their per-client breakdown
+    // (shown as the second pie). For "All Advisors" it's unused \u2014 the
+    // advisor notional ranking below drives that panel instead.
+    if(!isAllAdvisors && fundNameIdx >= 0){
+      const client = String(r[fundNameIdx]||'').trim() || 'Unspecified Client';
+      clientValues[client] = (clientValues[client] || 0) + usdVal;
+    }
+  });
+
+  const pieTopN = getPieTopN(advisorName);
+  window.__lastPieTopN = pieTopN;
+
+  renderPieChart('underlyingPie', 'underlyingLegend', underlyingCosts, 'No cost data available for this advisor.', 'screen', pieTopN);
+
+  if(isAllAdvisors){
+    const ranking = computeAdvisorNotionalRanking(headers, filteredRows, rates);
+    renderAdvisorRankingList('advisorRankingContent', ranking.slice(0, 10));
+    // Keep the full ranking (not just the top 10 shown) available to "Copy CSV",
+    // same as the pie panels copy every entry, not only what's drawn/legended.
+    const advisorValues = {};
+    ranking.forEach(e => { advisorValues[e.name] = e.value; });
+    window.__lastPieSums = { underlying: underlyingCosts, client: advisorValues };
+  } else {
+    renderPieChart('clientPie', 'clientLegend', clientValues, 'No client data available for this advisor.', 'screen', pieTopN);
+    window.__lastPieSums = { underlying: underlyingCosts, client: clientValues };
+  }
+  renderFundamentalObservations(headers, filteredRows, underlyingCosts);
+}
+
+function computeFundamentalsData(headers, filteredRows, underlyingCosts){
+  const top5 = Object.entries(underlyingCosts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(e => e[0]);
+
+  if(top5.length === 0){
+    return { topUnderlyings: [] };
+  }
+
+  const undIdx = colIndex(headers, 'Underlying Name');
+  const descIdx = colIndex(headers, 'Description');
+  const couponRateIdx = colIndex(headers, 'Coupon Rate');
+  const ccyIdx = colIndex(headers, 'Stock Currency') >= 0 ? colIndex(headers, 'Stock Currency') : colIndex(headers, 'Currency');
+
+  const relevantRows = undIdx >= 0
+    ? filteredRows.filter(r => top5.includes(String(r[undIdx] || '').trim()))
+    : [];
+
+  // Per underlying, then broken down by note currency (denomination) \u2014 the
+  // same stock can sit in several notes issued in different currencies.
+  const perUnderlying = {};
+  top5.forEach(name => { perUnderlying[name] = {}; });
+
+  relevantRows.forEach(r => {
+    const name = String(r[undIdx] || '').trim();
+    if(!perUnderlying[name]) return;
+    const ccy = ccyIdx >= 0 ? (String(r[ccyIdx] || '').trim().toUpperCase() || 'Unknown') : 'Unknown';
+    if(!perUnderlying[name][ccy]) perUnderlying[name][ccy] = { strike: [], ki: [], ko: [], coupon: [] };
+    const desc = descIdx >= 0 ? String(r[descIdx] || '') : '';
+    const parsed = parseDescriptionFields(desc);
+    const strikeNum = parseFloat(String(parsed.strike || '').replace('%', ''));
+    if(!isNaN(strikeNum)) perUnderlying[name][ccy].strike.push(strikeNum);
+    const kiNum = parseFloat(String(parsed.ki || '').replace('%', ''));
+    if(!isNaN(kiNum)) perUnderlying[name][ccy].ki.push(kiNum);
+    const koNum = parseFloat(String(parsed.ko || '').replace('%', ''));
+    if(!isNaN(koNum)) perUnderlying[name][ccy].ko.push(koNum);
+    if(couponRateIdx >= 0){
+      const couponStr = String(r[couponRateIdx] || '').trim();
+      if(couponStr){
+        const couponNum = parseFloat(couponStr.replace(/%/g, '').replace(/,/g, ''));
+        if(!isNaN(couponNum)) perUnderlying[name][ccy].coupon.push(couponNum * 12); // monthly rate -> p.a.
+      }
+    }
+  });
+
+  const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(2) + '%' : '—';
+
+  const topUnderlyings = top5.map(name => {
+    const byCcyMap = perUnderlying[name];
+    const byCcy = Object.keys(byCcyMap).sort().map(ccy => {
+      const s = byCcyMap[ccy];
+      return { ccy, avgStrike: avg(s.strike), avgKi: avg(s.ki), avgKo: avg(s.ko), avgCoupon: avg(s.coupon) };
+    });
+    return { name, byCcy };
+  });
+
+  return { topUnderlyings };
+}
+
+function renderFundamentalObservations(headers, filteredRows, underlyingCosts){
+  const cardsWrap = document.getElementById('topUnderlyingsCards');
+  if(!cardsWrap) return;
+
+  const { topUnderlyings } = computeFundamentalsData(headers, filteredRows, underlyingCosts);
+
+  if(topUnderlyings.length === 0){
+    cardsWrap.innerHTML = `<div style="color:var(--text-faint); font-style:italic; font-size:13px;">No underlying data available.</div>`;
+    return;
+  }
+
+  cardsWrap.innerHTML = topUnderlyings.map(u => `<div class="fund-card">
+      <div class="fund-card-title">${escapeHtml(u.name)}</div>
+      <table class="fundamentals-table fund-card-table">
+        <thead><tr><th>Currency</th><th>Avg strike</th><th>Avg KI</th><th>Avg KO</th><th>Avg coupon</th></tr></thead>
+        <tbody>${u.byCcy.map(c => `<tr>
+          <td>${escapeHtml(c.ccy)}</td>
+          <td>${c.avgStrike}</td>
+          <td>${c.avgKi}</td>
+          <td>${c.avgKo}</td>
+          <td>${c.avgCoupon}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`).join('');
+}
+
+function renderFxPanel(rates, timeText, timestamp){
+  document.getElementById('fxSub').textContent = timeText;
+  document.getElementById('fxLastUpdate').textContent = timestamp ? `Last update: ${timestamp}` : '—';
+  
+  const fxList = document.getElementById('fxList');
+  fxList.innerHTML = REQUIRED_CURRENCIES.filter(ccy => ccy !== 'USD').map(ccy => {
+    const val = rates[ccy] !== undefined ? rates[ccy] : (rates[CCY_ALIAS[ccy]] !== undefined ? rates[CCY_ALIAS[ccy]] : 1);
+    if(isEditingRates){
+      return `<div class="fx-row"><span class="fx-ccy">USD/${ccy}</span><input type="number" step="0.0001" class="fx-rate-input" data-ccy="${ccy}" value="${val}"></div>`;
+    } else {
+      return `<div class="fx-row"><span class="fx-ccy">USD/${ccy}</span><span class="fx-rate">${val.toFixed(4)}</span></div>`;
+    }
+  }).join('');
+
+  const editBtn = document.getElementById('editRatesBtn');
+  editBtn.textContent = isEditingRates ? 'Save rates' : 'Edit rates';
+  editBtn.onclick = () => {
+    if(isEditingRates){
+      const inputs = fxList.querySelectorAll('.fx-rate-input');
+      const newRates = { USD: 1 };
+      inputs.forEach(inp => {
+        const ccy = inp.getAttribute('data-ccy');
+        const num = parseFloat(inp.value);
+        if(!isNaN(num) && num > 0) newRates[ccy] = num;
+      });
+
+      const ratesChanged = REQUIRED_CURRENCIES.some(ccy => {
+        if(ccy === 'USD') return false;
+        const oldVal = rates[ccy] !== undefined ? rates[ccy] : (rates[CCY_ALIAS[ccy]] !== undefined ? rates[CCY_ALIAS[ccy]] : 1);
+        const newVal = newRates[ccy] !== undefined ? newRates[ccy] : 1;
+        return Math.abs(oldVal - newVal) > 1e-9;
+      });
+
+      isEditingRates = false;
+
+      if(ratesChanged){
+        savePersistedRates(newRates, 'Custom manual exchange rates');
+        updateDashboardForAdvisor(selectedAdvisorValue, window.__dashboardData.headers, window.__dashboardData.dataRows);
+      } else {
+        renderFxPanel(rates, timeText, timestamp);
+      }
+    } else {
+      isEditingRates = true;
+      renderFxPanel(rates, timeText, timestamp);
+    }
+  };
+}
+
+const fxRatesFile = document.getElementById('fxRatesFile');
+const fxUploadBtn = document.getElementById('fxUploadBtn');
+const fxDownloadTemplateBtn = document.getElementById('fxDownloadTemplateBtn');
+const fxUploadStatus = document.getElementById('fxUploadStatus');
+
+fxUploadBtn.addEventListener('click', () => fxRatesFile.click());
+
+fxRatesFile.addEventListener('change', (e) => {
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      
+      const newRates = { USD: 1 };
+      let count = 0;
+      rows.forEach(r => {
+        if(r.length >= 2){
+          const ccy = String(r[0]||'').trim().toUpperCase();
+          const rate = parseFloat(r[1]);
+          if(ccy && !isNaN(rate) && rate > 0){
+            newRates[ccy] = rate;
+            count++;
+          }
+        }
+      });
+
+      if(count > 0){
+        savePersistedRates(newRates, `Custom rates loaded from ${f.name}`);
+        fxUploadStatus.textContent = `Successfully loaded ${count} currency rates!`;
+        fxUploadStatus.style.color = '#2C6E49';
+        updateDashboardForAdvisor(selectedAdvisorValue, window.__dashboardData.headers, window.__dashboardData.dataRows);
+      } else {
+        fxUploadStatus.textContent = 'Could not find valid Currency, Rate pairs in file.';
+        fxUploadStatus.style.color = '#C8102E';
+      }
+    } catch(err) {
+      console.error(err);
+      fxUploadStatus.textContent = 'Error parsing FX file.';
+      fxUploadStatus.style.color = '#C8102E';
+    }
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+fxDownloadTemplateBtn.addEventListener('click', () => {
+  const templateData = [
+    ['Currency', 'Rate (vs USD)'],
+    ['AUD', 1.3951],
+    ['GBP', 0.7382],
+    ['JPY', 159.79],
+    ['CNH', 6.72],
+    ['HKD', 7.838],
+    ['SGD', 1.2726],
+    ['MYR', 4.03]
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(templateData);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'FX Rates');
+  XLSX.writeFile(wb, 'fx_rates_template.xlsx');
+});
+</script>
+<div class="bulk-pdf-overlay" id="bulkPdfOverlay">
+  <div class="bulk-pdf-spinner"></div>
+  <div class="bulk-pdf-overlay-title" id="bulkPdfOverlayTitle">Generating PDF reports…</div>
+  <div class="bulk-pdf-overlay-sub" id="bulkPdfOverlaySub">This can take a few minutes for a large number of advisors. Please keep this tab open.</div>
+  <button type="button" class="bulk-pdf-overlay-cancel" id="bulkPdfCancelBtn">Cancel</button>
+</div>
+</body>
+</html>
