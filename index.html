@@ -35,24 +35,25 @@
   }
   .topbar{
     background:var(--navy);
-    padding:22px 40px;
+    padding:18px 40px 14px;
     display:flex;
-    align-items:center;
+    align-items:flex-end;
     justify-content:space-between;
     border-bottom:4px solid var(--red);
   }
   .topbar-left{display:flex;flex-direction:column;gap:2px;}
-  .brandmark{display:flex;align-items:center;gap:10px;}
+  .brandmark{display:flex;align-items:center;gap:10px;align-self:flex-end;}
   .logo-sq{
     width:34px;height:34px;background:var(--red);border-radius:6px;
     display:flex;align-items:center;justify-content:center;
     color:#fff;font-weight:700;font-size:17px;flex-shrink:0;
     line-height: 1;
+    box-sizing:border-box;padding-bottom:3px; /* nudges the U up ~1.5px */
   }
-  .brand-name{color:#fff;font-size:15px;font-weight:600;letter-spacing:0.2px;}
-  .brand-sub{color:#A9B4C4;font-size:11.5px;}
-  .title{color:#fff;font-size:22px;font-weight:600;margin-top:10px;}
-  .subtitle{color:#A9B4C4;font-size:13px;margin-top:2px;}
+  .brand-name{color:#fff;font-size:13.5px;font-weight:600;letter-spacing:0.2px;}
+  .brand-sub{color:#A9B4C4;font-size:10.5px;}
+  .title{color:#fff;font-size:19px;font-weight:600;margin-top:0;}
+  .subtitle{color:#A9B4C4;font-size:11.5px;margin-top:2px;}
 
   .wrap{
     max-width:1180px;
@@ -423,10 +424,12 @@
   .advisor-header-row {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
     gap: 20px;
     flex-wrap: wrap;
   }
+  .advisor-header-row .section-title{ margin: 0; }
+  #advisorPanel{ padding-top: 8px; padding-bottom: 8px; }
 
   .advisor-controls{
     display:flex;
@@ -1045,8 +1048,7 @@
     <div class="panel" id="advisorPanel">
       <div class="advisor-header-row">
         <div>
-          <div class="section-title">Advisor view</div>
-          <div class="section-sub" style="margin-bottom: 0;">Pick an advisor to see their own book. The respective data will update accordingly.</div>
+          <div class="section-title">Select an advisor to see their holdings</div>
         </div>
         <div class="advisor-controls" id="advisorControlsContainer">
         </div>
@@ -1085,7 +1087,7 @@
         <div class="section-title">Fundamental observations</div>
         <button type="button" class="btn btn-outline" id="fundCopyBtn" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy</button>
       </div>
-      <div class="section-sub">Average strike, KI, KO and coupon for the top 5 underlyings, by traded currency.</div>
+      <div class="section-sub">Average strike, KI, KO and coupon for the top 5 underlyings, by traded currency</div>
       <div class="fund-cards-grid" id="topUnderlyingsCards"></div>
     </div>
 
@@ -3402,7 +3404,8 @@ const printDonutLabelsPlugin = {
 
 const sliceCenterLabelsPlugin = {
   id: 'sliceCenterLabels',
-  afterDraw(chart, args, opts) {
+  // afterDatasetsDraw (not afterDraw) so the tooltip is painted on top of these percentages
+  afterDatasetsDraw(chart, args, opts) {
     if(!opts || !opts.enabled) return;
     const { ctx, chartArea } = chart;
     const meta = chart.getDatasetMeta(0);
@@ -3586,6 +3589,7 @@ function renderPieChart(canvasId, legendId, dataMap, emptyText, renderMode = 'sc
         legend: { display: false },
         tooltip: {
           enabled: true,
+          backgroundColor: '#000000',
           position: 'average',
           yAlign: 'bottom',
           callbacks: {
