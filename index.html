@@ -777,23 +777,6 @@
     text-align: right;
   }
 
-  .fx-upload{
-    margin-top:16px;
-    padding-top:14px;
-    border-top:1px solid var(--line);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-  .fx-upload-label{
-    display:block;
-    font-size:12.5px;
-    font-weight:600;
-    color:var(--text);
-    margin-bottom:2px;
-  }
-  #fxRatesFile{display:none;}
-
   .bulk-pdf-overlay{
     position: fixed;
     inset: 0;
@@ -843,7 +826,7 @@
       print-color-adjust: exact !important;
       color-adjust: exact !important;
     }
-    .topbar, .file-bar, .stat-grid, #advisorPanel, #fxCol, .privacy-note, #uploadZone, .reset-link, .filter-btn, .copy-csv-btn, .download-panel, .panel:has(#previewTable) { display: none !important; }
+    .topbar, .file-bar, .stat-grid, #advisorPanel, #fxCol, .privacy-note, #uploadZone, .reset-link, .filter-btn, .copy-csv-btn, #fundCopyBtn, .download-panel, .panel:has(#previewTable) { display: none !important; }
     .wrap { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
     .dashboard-layout { display: block !important; }
     .main-col { width: 100% !important; }
@@ -1074,7 +1057,7 @@
       <div class="panel print-pie-panel">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <div class="section-title">Underlying allocation</div>
-          <button type="button" class="btn btn-outline copy-csv-btn" data-source="underlying" data-col="Underlying" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy CSV</button>
+          <button type="button" class="btn btn-outline copy-csv-btn" data-source="underlying" data-col="Underlying" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy</button>
         </div>
         <div class="section-sub" id="pieSub">Share of cost by underlying stock across all advisors, on behalf of clients.</div>
         <div class="pie-layout">
@@ -1086,7 +1069,7 @@
       <div class="panel print-pie-panel">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
           <div class="section-title" id="clientPanelTitle">Client holdings</div>
-          <button type="button" class="btn btn-outline copy-csv-btn" id="clientCopyCsvBtn" data-source="client" data-col="Client" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy CSV</button>
+          <button type="button" class="btn btn-outline copy-csv-btn" id="clientCopyCsvBtn" data-source="client" data-col="Client" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy</button>
         </div>
         <div class="section-sub" id="clientPieSub">Share of total portfolio value by client across all advisors.</div>
         <div class="pie-layout" id="clientPieContent">
@@ -1098,9 +1081,11 @@
     </div>
 
     <div class="panel" id="fundamentalPanel">
-      <div class="section-title">Fundamental observations</div>
-      <div class="section-sub">Average strike, KI, KO and coupon for the top 5 underlyings by cost, broken down by currency</div>
-      <div class="fund-group-label">Underlying</div>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <div class="section-title">Fundamental observations</div>
+        <button type="button" class="btn btn-outline" id="fundCopyBtn" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy</button>
+      </div>
+      <div class="section-sub">Average strike, KI, KO and coupon for the top 5 underlyings, by traded currency.</div>
       <div class="fund-cards-grid" id="topUnderlyingsCards"></div>
     </div>
 
@@ -1157,22 +1142,12 @@
     <div class="panel fx-panel">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
         <div class="section-title" style="margin:0;">Exchange rates</div>
-        <button type="button" class="btn-outline" id="editRatesBtn" style="font-size:11px; padding:3px 8px; border-radius:4px;">Edit rates</button>
+        <button type="button" class="btn-outline" id="copyRatesBtn" style="font-size:11px; padding:3px 8px; border-radius:4px;">Copy</button>
       </div>
       <div class="section-sub" id="fxSub">Fetching direct USD/USD pairs&hellip;</div>
       <div id="fxLastUpdate" style="font-size:11.5px; color:var(--text-faint); margin-bottom:8px; font-style:italic;">Last update: —</div>
       <div id="fxList" class="fx-list"></div>
 
-      <div class="fx-upload">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <label class="fx-upload-label" for="fxRatesFile" style="margin-bottom:0;">Upload custom rates</label>
-          <button class="btn-outline" id="fxDownloadTemplateBtn" type="button" style="font-size:11px; padding:3px 8px; border-radius:4px;">Template</button>
-        </div>
-        <div class="section-sub" style="margin:0;">Upload an Excel or CSV file matching the template structure.</div>
-        <button class="btn btn-outline" id="fxUploadBtn" type="button" style="width:100%;">Choose rates file</button>
-        <input type="file" id="fxRatesFile" accept=".csv,.xlsx,.xls">
-        <div id="fxUploadStatus" class="section-sub" style="margin-top:2px;"></div>
-      </div>
     </div>
   </aside>
 
@@ -1892,7 +1867,7 @@ async function generateAdvisorPdfBlob(advisorName){
   doc.text('Fundamental observations', M, fundY);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
   doc.setTextColor(120, 128, 140);
-  doc.text('Average strike, KI, KO and coupon for the top 5 underlyings by cost, broken down by currency', M, fundY + 4.5);
+  doc.text('Average strike, KI, KO and coupon for the top 5 underlyings, by traded currency', M, fundY + 4.5);
 
   const fundTableY = fundY + 8;
   const fundColW = pageW - M * 2;
@@ -2163,11 +2138,9 @@ function buildPieCopyData(dataMap, colLabel){
     (Math.round(e[1] * 100) / 100).toFixed(2),
     pctList[i].toFixed(2)
   ]);
-  const csvCell = v => {
-    const t = String(v);
-    return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
-  };
-  const csv = [header].concat(rows).map(r => r.map(csvCell).join(',')).join('\r\n');
+  // Plain text is tab-separated (no commas), same style as the exchange rate Copy button.
+  const txtCell = v => String(v).replace(/[\t\r\n]+/g, ' ');
+  const csv = [header].concat(rows).map(r => r.map(txtCell).join('\t')).join('\r\n');
   // nowrap (attribute + style) so Excel pastes the cells with Wrap Text off.
   const htmlRow = (r, tag) => '<tr>' + r.map(c => `<${tag} nowrap style="white-space:nowrap;">${escapeHtml(String(c))}</${tag}>`).join('') + '</tr>';
   const html = '<table>' + htmlRow(header, 'th') + rows.map(r => htmlRow(r, 'td')).join('') + '</table>';
@@ -2221,6 +2194,47 @@ document.querySelectorAll('.copy-csv-btn').forEach(btn => {
     }
     setTimeout(() => { btn.textContent = originalLabel; }, 1600);
   });
+});
+
+document.getElementById('fundCopyBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('fundCopyBtn');
+  const data = window.__lastFundamentals || [];
+  if(data.length === 0){
+    btn.textContent = 'No data';
+  } else {
+    // One small table per underlying, laid out side by side (blank column between tables):
+    //   [name]
+    //   Currency | Avg strike | Avg KI | Avg KO | Avg coupon
+    //   rows...
+    const colHead = ['Currency', 'Avg strike', 'Avg KI', 'Avg KO', 'Avg coupon'];
+    const W = colHead.length;
+    const maxRows = Math.max.apply(null, data.map(u => u.byCcy.length));
+    const blocks = data.map(u => {
+      const lines = [[u.name].concat(new Array(W - 1).fill('')), colHead];
+      u.byCcy.forEach(c => lines.push([c.ccy, c.avgStrike, c.avgKi, c.avgKo, c.avgCoupon]));
+      while(lines.length < maxRows + 2) lines.push(new Array(W).fill(''));
+      return lines;
+    });
+    const grid = [];
+    for(let r = 0; r < maxRows + 2; r++){
+      let line = [];
+      blocks.forEach((blk, i) => {
+        if(i > 0) line.push('');
+        line = line.concat(blk[r]);
+      });
+      grid.push(line);
+    }
+    const txtCell = v => String(v).replace(/[\t\r\n]+/g, ' ');
+    const text = grid.map(r => r.map(txtCell).join('\t')).join('\r\n');
+    // Rows 0 (stock name) and 1 (column headers) are bold in the pasted HTML (Excel keeps this).
+    const html = '<table>' + grid.map((r, ri) => '<tr>' + r.map(c => {
+      const t = escapeHtml(String(c));
+      return `<td nowrap style="white-space:nowrap;${ri < 2 ? 'font-weight:bold;' : ''}">${ri < 2 && t ? '<b>' + t + '</b>' : t}</td>`;
+    }).join('') + '</tr>').join('') + '</table>';
+    const ok = await copyCsvToClipboard(text, html);
+    btn.textContent = ok ? 'Copied \u2713' : 'Copy failed';
+  }
+  setTimeout(() => { btn.textContent = 'Copy'; }, 1600);
 });
 
 function setBtnLabel(btn, text){
@@ -3183,25 +3197,8 @@ let customRatesLabel = '';
 let customRatesTimestamp = '';
 let isEditingRates = false;
 
-function loadPersistedRates(){
-  const saved = localStorage.getItem('custom_fx_rates');
-  if(saved){
-    try{
-      const parsed = JSON.parse(saved);
-      customRatesCache = parsed.rates;
-      customRatesLabel = parsed.label || 'Saved custom rates';
-      customRatesTimestamp = parsed.timestamp || '';
-    }catch(e){ console.error(e); }
-  }
-}
-loadPersistedRates();
-
-function savePersistedRates(rates, label){
-  customRatesCache = rates;
-  customRatesLabel = label;
-  customRatesTimestamp = new Date().toLocaleString();
-  localStorage.setItem('custom_fx_rates', JSON.stringify({ rates, label, timestamp: customRatesTimestamp }));
-}
+// Manual rate editing was removed: clear any previously saved custom rates so live rates are always used
+try{ localStorage.removeItem('custom_fx_rates'); }catch(e){}
 
 function fetchCurrencyConverterRates(){
   if(customRatesCache){
@@ -3984,6 +3981,7 @@ function renderFundamentalObservations(headers, filteredRows, underlyingCosts){
   if(!cardsWrap) return;
 
   const { topUnderlyings } = computeFundamentalsData(headers, filteredRows, underlyingCosts);
+  window.__lastFundamentals = topUnderlyings;
 
   if(topUnderlyings.length === 0){
     cardsWrap.innerHTML = `<div style="color:var(--text-faint); font-style:italic; font-size:13px;">No underlying data available.</div>`;
@@ -4007,117 +4005,35 @@ function renderFundamentalObservations(headers, filteredRows, underlyingCosts){
 
 function renderFxPanel(rates, timeText, timestamp){
   document.getElementById('fxSub').textContent = timeText;
-  document.getElementById('fxLastUpdate').textContent = timestamp ? `Last update: ${timestamp}` : '—';
-  
-  const fxList = document.getElementById('fxList');
-  fxList.innerHTML = REQUIRED_CURRENCIES.filter(ccy => ccy !== 'USD').map(ccy => {
+  document.getElementById('fxLastUpdate').textContent = timestamp ? `Last update: ${timestamp}` : '\u2014';
+
+  const pairs = REQUIRED_CURRENCIES.filter(ccy => ccy !== 'USD').map(ccy => {
     const val = rates[ccy] !== undefined ? rates[ccy] : (rates[CCY_ALIAS[ccy]] !== undefined ? rates[CCY_ALIAS[ccy]] : 1);
-    if(isEditingRates){
-      return `<div class="fx-row"><span class="fx-ccy">USD/${ccy}</span><input type="number" step="0.0001" class="fx-rate-input" data-ccy="${ccy}" value="${val}"></div>`;
-    } else {
-      return `<div class="fx-row"><span class="fx-ccy">USD/${ccy}</span><span class="fx-rate">${val.toFixed(4)}</span></div>`;
+    return { ccy, val };
+  });
+
+  document.getElementById('fxList').innerHTML = pairs.map(p =>
+    `<div class="fx-row"><span class="fx-ccy">USD/${p.ccy}</span><span class="fx-rate">${p.val.toFixed(4)}</span></div>`
+  ).join('');
+
+  const copyBtn = document.getElementById('copyRatesBtn');
+  copyBtn.onclick = async () => {
+    const text = pairs.map(p => `USD/${p.ccy}\t${p.val.toFixed(4)}`).join('\n');
+    let ok = false;
+    try{
+      await navigator.clipboard.writeText(text);
+      ok = true;
+    }catch(e){
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try{ ok = document.execCommand('copy'); }catch(_){}
+      ta.remove();
     }
-  }).join('');
-
-  const editBtn = document.getElementById('editRatesBtn');
-  editBtn.textContent = isEditingRates ? 'Save rates' : 'Edit rates';
-  editBtn.onclick = () => {
-    if(isEditingRates){
-      const inputs = fxList.querySelectorAll('.fx-rate-input');
-      const newRates = { USD: 1 };
-      inputs.forEach(inp => {
-        const ccy = inp.getAttribute('data-ccy');
-        const num = parseFloat(inp.value);
-        if(!isNaN(num) && num > 0) newRates[ccy] = num;
-      });
-
-      const ratesChanged = REQUIRED_CURRENCIES.some(ccy => {
-        if(ccy === 'USD') return false;
-        const oldVal = rates[ccy] !== undefined ? rates[ccy] : (rates[CCY_ALIAS[ccy]] !== undefined ? rates[CCY_ALIAS[ccy]] : 1);
-        const newVal = newRates[ccy] !== undefined ? newRates[ccy] : 1;
-        return Math.abs(oldVal - newVal) > 1e-9;
-      });
-
-      isEditingRates = false;
-
-      if(ratesChanged){
-        savePersistedRates(newRates, 'Custom manual exchange rates');
-        updateDashboardForAdvisor(selectedAdvisorValue, window.__dashboardData.headers, window.__dashboardData.dataRows);
-      } else {
-        renderFxPanel(rates, timeText, timestamp);
-      }
-    } else {
-      isEditingRates = true;
-      renderFxPanel(rates, timeText, timestamp);
-    }
+    copyBtn.textContent = ok ? 'Copied!' : 'Copy failed';
+    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
   };
 }
-
-const fxRatesFile = document.getElementById('fxRatesFile');
-const fxUploadBtn = document.getElementById('fxUploadBtn');
-const fxDownloadTemplateBtn = document.getElementById('fxDownloadTemplateBtn');
-const fxUploadStatus = document.getElementById('fxUploadStatus');
-
-fxUploadBtn.addEventListener('click', () => fxRatesFile.click());
-
-fxRatesFile.addEventListener('change', (e) => {
-  const f = e.target.files[0];
-  if(!f) return;
-  const reader = new FileReader();
-  reader.onload = (evt) => {
-    try {
-      const data = new Uint8Array(evt.target.result);
-      const wb = XLSX.read(data, {type:'array'});
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
-      
-      const newRates = { USD: 1 };
-      let count = 0;
-      rows.forEach(r => {
-        if(r.length >= 2){
-          const ccy = String(r[0]||'').trim().toUpperCase();
-          const rate = parseFloat(r[1]);
-          if(ccy && !isNaN(rate) && rate > 0){
-            newRates[ccy] = rate;
-            count++;
-          }
-        }
-      });
-
-      if(count > 0){
-        savePersistedRates(newRates, `Custom rates loaded from ${f.name}`);
-        fxUploadStatus.textContent = `Successfully loaded ${count} currency rates!`;
-        fxUploadStatus.style.color = '#2C6E49';
-        updateDashboardForAdvisor(selectedAdvisorValue, window.__dashboardData.headers, window.__dashboardData.dataRows);
-      } else {
-        fxUploadStatus.textContent = 'Could not find valid Currency, Rate pairs in file.';
-        fxUploadStatus.style.color = '#C8102E';
-      }
-    } catch(err) {
-      console.error(err);
-      fxUploadStatus.textContent = 'Error parsing FX file.';
-      fxUploadStatus.style.color = '#C8102E';
-    }
-  };
-  reader.readAsArrayBuffer(f);
-});
-
-fxDownloadTemplateBtn.addEventListener('click', () => {
-  const templateData = [
-    ['Currency', 'Rate (vs USD)'],
-    ['AUD', 1.3951],
-    ['GBP', 0.7382],
-    ['JPY', 159.79],
-    ['CNH', 6.72],
-    ['HKD', 7.838],
-    ['SGD', 1.2726],
-    ['MYR', 4.03]
-  ];
-  const ws = XLSX.utils.aoa_to_sheet(templateData);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'FX Rates');
-  XLSX.writeFile(wb, 'fx_rates_template.xlsx');
-});
 </script>
 <div class="bulk-pdf-overlay" id="bulkPdfOverlay">
   <div class="bulk-pdf-spinner"></div>
