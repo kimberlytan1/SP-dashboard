@@ -1061,7 +1061,7 @@
           <div class="section-title">Underlying allocation</div>
           <button type="button" class="btn btn-outline copy-csv-btn" data-source="underlying" data-col="Underlying" style="font-size:12px; padding:5px 10px; border-radius:6px;">Copy</button>
         </div>
-        <div class="section-sub" id="pieSub">Share of cost by underlying stock across all advisors, on behalf of clients.</div>
+        <div class="section-sub" id="pieSub">Share of cost by underlying stock across all advisors, on behalf of clients</div>
         <div class="pie-layout">
           <div class="pie-canvas-wrap"><canvas id="underlyingPie"></canvas></div>
           <div class="pie-legend" id="underlyingLegend"></div>
@@ -1557,11 +1557,26 @@ function drawVectorTable(doc, opts){
     }
   }
 
-  function drawGroupRow(text){
+  // Height a data row will take once wrapped (mirrors drawDataRow's maths).
+  function dataRowHeight(cells){
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(fontSize);
+    const lh = lineHeightFor(fontSize);
+    const maxLines = Math.max(1, ...cells.map((val, i) => {
+      if(val && typeof val === 'object' && val.swatch) return 1;
+      return doc.splitTextToSize(String(val == null ? '' : val), Math.max(4, colWidths[i] - cellPadding * 2)).length;
+    }));
+    return maxLines * lh + cellPadding * 2;
+  }
+
+  function drawGroupRow(text, nextRow){
+    // Never leave a group bar stranded at the bottom of a page: reserve room for
+    // the bar AND the first data row under it, otherwise move both to the next page.
+    const nextH = (nextRow && nextRow.cells) ? dataRowHeight(nextRow.cells) : 0;
     doc.setFont('helvetica', 'bold'); doc.setFontSize(groupFontSize);
     const lh = lineHeightFor(groupFontSize);
     const rowH = lh + cellPadding * 2;
-    ensureSpace(rowH);
+    ensureSpace(rowH + nextH);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(groupFontSize);
     doc.setFillColor(groupFill[0], groupFill[1], groupFill[2]);
     doc.rect(x, y, tableWidth, rowH, 'F');
     doc.setTextColor(groupTextColor[0], groupTextColor[1], groupTextColor[2]);
@@ -1624,8 +1639,8 @@ function drawVectorTable(doc, opts){
   }
 
   drawHeaderRow();
-  body.forEach(row => {
-    if(row.group) drawGroupRow(row.text);
+  body.forEach((row, idx) => {
+    if(row.group) drawGroupRow(row.text, body[idx + 1]);
     else if(row.empty) drawEmptyRow(row.text);
     else drawDataRow(row.cells);
   });
@@ -1830,19 +1845,43 @@ async function generateAdvisorPdfBlob(advisorName){
   doc.text(advisorLabel, M, 22.5);
 
 
+  // ---- Top-right: company logo + tagline (far right), stats sit to its left ----
+  const logoSize = 10, logoX = pageW - M - logoSize, logoY = 11.5;
+  doc.setFillColor(200, 16, 46);
+  doc.roundedRect(logoX, logoY, logoSize, logoSize, 1.6, 1.6, 'F');
   doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-  doc.setTextColor(20, 30, 45);
-  doc.text(`USD ${Math.round(totalUsd).toLocaleString('en-US')}`, pageW - M, 17, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-  doc.setTextColor(120, 128, 140);
-  doc.text('Total Notional', pageW - M, 20.5, { align: 'right' });
+  doc.setTextColor(255, 255, 255);
+  doc.text('U', logoX + logoSize / 2, logoY + 6.7, { align: 'center' });
 
+  const brandRight = logoX - 2.5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+  doc.setTextColor(20, 30, 45);
+  doc.text('UOB Kay Hian', brandRight, logoY + 4.4, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+  doc.setTextColor(120, 128, 140);
+  const tagline = 'Your trusted financial partner';
+  doc.text(tagline, brandRight, logoY + 8.4, { align: 'right' });
+  const brandLeft = brandRight - Math.max(doc.getTextWidth(tagline), 20);
+
+  // Stats: Total Notional (right-most of the two), then No. of Products to its left
+  const notionalRight = brandLeft - 12;
+  const notionalStr = `USD ${Math.round(totalUsd).toLocaleString('en-US')}`;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
   doc.setTextColor(20, 30, 45);
-  doc.text(`${productCount.toLocaleString()}`, pageW - M - 45, 17, { align: 'right' });
+  doc.text(notionalStr, notionalRight, 17, { align: 'right' });
+  const notionalW = doc.getTextWidth(notionalStr);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
   doc.setTextColor(120, 128, 140);
-  doc.text('No. of Products', pageW - M - 45, 20.5, { align: 'right' });
+  doc.text('Total Notional', notionalRight, 20.5, { align: 'right' });
+  const notionalBlockW = Math.max(notionalW, doc.getTextWidth('Total Notional'));
+
+  const productsRight = notionalRight - notionalBlockW - 12;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
+  doc.setTextColor(20, 30, 45);
+  doc.text(`${productCount.toLocaleString()}`, productsRight, 17, { align: 'right' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+  doc.setTextColor(120, 128, 140);
+  doc.text('No. of Products', productsRight, 20.5, { align: 'right' });
 
   doc.setDrawColor(220, 224, 230);
   doc.line(M, 26, pageW - M, 26);
@@ -3794,9 +3833,9 @@ function updateDashboardForAdvisor(advisorName, headers, dataRows){
     const pieSubEl = document.getElementById('pieSub');
     if(pieSubEl){
       if(!advisorName || advisorName.trim() === ""){
-        pieSubEl.textContent = "Share of cost by underlying stock across all advisors, on behalf of clients.";
+        pieSubEl.textContent = "Share of cost by underlying stock across all advisors, on behalf of clients";
       } else {
-        pieSubEl.textContent = "Share of cost by underlying stock for the selected advisor, on behalf of clients.";
+        pieSubEl.textContent = "Share of cost by underlying stock for the selected advisor, on behalf of clients";
       }
     }
 
@@ -3810,7 +3849,7 @@ function updateDashboardForAdvisor(advisorName, headers, dataRows){
 
     if(isAllAdvisors){
       if(clientPanelTitleEl) clientPanelTitleEl.textContent = 'Top 10 advisors by notional';
-      if(clientPieSubEl) clientPieSubEl.textContent = 'Advisors managing the largest total notional, converted to USD.';
+      if(clientPieSubEl) clientPieSubEl.textContent = 'Advisors managing the largest total notional, converted to USD';
       if(clientPieContentEl) clientPieContentEl.style.display = 'none';
       if(advisorRankingContentEl) advisorRankingContentEl.style.display = 'grid';
       if(clientCopyCsvBtn) clientCopyCsvBtn.setAttribute('data-col', 'Advisor');
